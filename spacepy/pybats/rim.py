@@ -339,6 +339,43 @@ class Iono(PbData):
         self['s_Iup']   = units*R**2 * np.sum(integrand[loc_up])
         self['s_Idown'] = units*R**2 * np.sum(integrand[loc_do])
 
+    def calc_bright(self):
+        '''
+        The brightness observed in the GAIA LBH passbands (long and short)
+        for given precipitation parameters.
+
+        This is an empirical model determined by fitting results obtained by
+        running GLOW with Franck-Condon factors combined with the nominal GAIA
+        LBH passbands, including the effect of O2 absorption.
+
+        INPUTS (handled by **self**):
+        eflux - [erg/cm^2/s] The energy flux of precipitating electrons.
+        e     - [eV]         The average energy of precipitating electrons.
+                           A Maxwellian distribution is assumed.
+        OUTPUTS (saved as self[hemi + i-long], etc.):
+        Ilong  - [R]   Brightness in the LBH long channel.
+        Ishort - [R]  Brightness in the LBH short channel.
+
+        The triangular passband is accounted for in all outputs.
+        '''
+
+        # Energy dependence:
+        # Fitted 6th order polynomial coefficients
+        cL = np.array([3.21561119, 0.31176226, -9.58963207, -14.42459333,
+                       -8.84892016, 27.75758128, 66.92209348])
+        cS = np.array([-25.53341678, 33.15085169, 93.14300319,
+                       -66.30232109, -166.32052898, 2.3044538,
+                       171.21479873])
+
+        for hemi in ['n_', 's_']:
+            x = np.log10(1000 * self[hemi + 'ave-e'] + 1E-4) - 3.0
+            Ilong = np.polyval(cL, x)
+            Ishort = np.polyval(cS, x)
+
+            # Brightness scales with flux
+            self[hemi + 'i-long'] = self[hemi + 'e-flux'] * Ilong
+            self[hemi + 'i-short'] = self[hemi + 'e-flux'] * Ishort
+
     def add_cont(self, var, target=None, n=50, maxz=False, lines=False,
                  cmap=False, add_cbar=False, label=None, loc=111,
                  xticksize=12, yticksize=12, max_colat=40, **kwargs):
