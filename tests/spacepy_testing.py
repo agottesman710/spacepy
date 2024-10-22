@@ -196,14 +196,17 @@ class TestPlot(unittest.TestCase):
         import matplotlib
         import matplotlib.pyplot
         self.old_backend = matplotlib.get_backend()
+        matplotlib.pyplot.close('all')
         matplotlib.use('agg')
 
     def tearDown(self):
         super().tearDown()
         import matplotlib
         import matplotlib.pyplot
-        if self.save_plots and matplotlib.pyplot.get_fignums():
-            fname = 'output_{}.png'.format('_'.join(self.id().split('.')[1:]))
-            matplotlib.pyplot.savefig(fname)
+        if matplotlib.pyplot.get_fignums():
+            if self.save_plots:
+                fname = 'output_{}.png'.format('_'.join(self.id().split('.')[1:]))
+                matplotlib.pyplot.savefig(fname)
             matplotlib.pyplot.close()
+        matplotlib.pyplot.close('all')
         matplotlib.use(self.old_backend)

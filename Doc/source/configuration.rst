@@ -19,7 +19,7 @@ On Unix-like operating systems, it is in a user's home directory; on Windows,
 in the user's Documents and Settings folder. If it doesn't exist, this directory
 (and ``spacepy.rc``) is automatically created when SpacePy is imported.
 
-``spacepy.rc`` has an INI-style format, parsed by :py:mod:`ConfigParser`. It
+``spacepy.rc`` has an INI-style format, parsed by :mod:`~configparser`. It
 contains a single section, ``[spacepy]``.
 
     * `The spacepy directory`_
@@ -58,18 +58,10 @@ data, which can be updated with :func:`~spacepy.toolbox.update`.
 
 Available configuration options
 ===============================
-enable_deprecation_warning
-  SpacePy raises :py:exc:`~exceptions.DeprecationWarning` when deprecated functions
-  are called. Starting in Python 2.7, these are ignored. SpacePy adds a warnings
-  filter to force display of deprecation warnings from SpacePy the first time a
-  deprecated function is called. Set this option to False to retain the default
-  Python behavior. (See :py:mod:`warnings` module for details on custom warning
-  filters.)
-
 enable_old_data_warning
   SpacePy maintains certain databases from external sources, notably the
   leapsecond database used by :py:mod:`~spacepy.time`. By default
-  :py:exc:`~exceptions.UserWarning` is issued if the leap second database
+  :exc:`UserWarning` is issued if the leap second database
   is out of date. Set this option to False to suppress this warning (and
   warnings about out-of-date data which may be added in the future.)
 

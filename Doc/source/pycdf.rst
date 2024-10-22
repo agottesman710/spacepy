@@ -2,14 +2,16 @@
 pycdf - Python interface to CDF files
 ######################################
 
-.. automodule:: spacepy.pycdf
-
 Contents
 --------
 
 .. contents::
    :depth: 2
    :local:
+
+.. currentmodule:: spacepy.pycdf
+
+See also the `full API documentation <spacepy.pycdf>`.
 
 Create a CDF
 ============
@@ -61,7 +63,7 @@ If a master is used, data in the master will be copied to the new CDF.
 
 .. note::
     You cannot create a new CDF with a name that already exists on disk.
-    It will throw a :exc:`~exceptions.NameError`
+    It will throw a :exc:`NameError`
 
 
 To put data into a CDF, assign it directly to an element of the CDF.
@@ -260,7 +262,7 @@ variable may not correspond to the number of characters if data are
 not restricted to the ASCII range.
 
 A different encoding can be specified with the ``encoding`` argument
-to :class:`~spacepy.pycdf.CDF.open` and this encoding will be used on
+to ``spacepy.pycdf.CDF.open()`` and this encoding will be used on
 all reads and writes to that file. Opening a CDF read-write with
 ``encoding`` other than ``utf-8`` or ``ascii`` will issue a warning.
 
@@ -285,9 +287,11 @@ Troubleshooting
 ===============
 Cannot load CDF C library
 ^^^^^^^^^^^^^^^^^^^^^^^^^
-pycdf requires the standard NASA CDF library 3.5 or later; it can be installed
-after SpacePy. See specific instructions for :ref:`Linux <linux_CDF>`,
-:ref:`Mac <install_mac_cdf>`, and :ref:`Windows <windows_CDF>`.
+pycdf requires the standard NASA CDF library 3.5 or later; it can be
+installed after SpacePy. Generally this is only necessary if
+installing SpacePy from source. See specific instructions for
+:ref:`Linux <linux_CDF>`, :ref:`Mac <install_mac_cdf>`, and
+:ref:`Windows <windows_CDF>`.
 
 The error ``Cannot load CDF C library`` indicates pycdf cannot find
 this library. pycdf searches in locations where the library is
@@ -327,59 +331,3 @@ available in the :mod:`~spacepy.pycdf.const` module.
 
 The underlying C library is represented by the :attr:`~spacepy.pycdf.lib`
 variable.
-
-Classes
-=======
-
-.. autosummary::
-    :template: clean_class.rst
-    :toctree: autosummary
-
-    CDF
-    Var
-    gAttrList
-    zAttrList
-    zAttr
-    gAttr
-    AttrList
-    Attr
-    Library
-    CDFCopy
-    VarCopy
-    CDFError
-    CDFException
-    CDFWarning
-    EpochError
-
-Functions
-=========
-
-.. autosummary::
-    :template: clean_function.rst
-    :toctree: autosummary
-
-    concatCDF
-
-Submodules
-==========
-
-.. autosummary::
-    :toctree: autosummary  
-    :template: clean_module.rst
-
-    const
-    istp
-
-Data
-====
-
-.. attribute:: lib
-
-    Module global :class:`Library` object.
-
-    Initalized at :mod:`~spacepy.pycdf` load time so all classes have ready
-    access to the CDF library and a common state. E.g:
-
-    >>> from spacepy import pycdf
-    >>> pycdf.lib.version
-        (3, 3, 0, ' ')

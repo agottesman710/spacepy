@@ -6,6 +6,7 @@ Copyright 2019 SpacePy contributors
 """
 
 import http.server
+import http.client
 requesthandlerclass = http.server.SimpleHTTPRequestHandler
 import os
 import shutil
@@ -13,6 +14,7 @@ import socket
 import tempfile
 import threading
 import unittest
+from urllib.error import HTTPError
 
 import spacepy_testing
 import spacepy.toolbox
@@ -155,6 +157,50 @@ class WebGettingIntegration(unittest.TestCase):
         finally:
             conn.close()
         self.assertEqual(b'This is a test\n', data)
+
+    def testGetUrlValueErrorOn404WithKeepAlive(self):
+        """Call get_url with keepalive and a bad link"""
+        with self.assertRaises(RuntimeError) as cm:
+            spacepy.toolbox.get_url('http://localhost:{}/doesnotexist.txt'.format(self.port), keepalive=True)
+        self.assertEqual('HTTP status 404 File not found',
+                         str(cm.exception))
+    
+    def testGetUrlCacheNoOutfileNoKeepAlive(self):
+        """Call get_url with Cache, no outfile, and no keepalive"""
+        with self.assertRaises(ValueError) as cm:
+            spacepy.toolbox.get_url('http://localhost:{}/'.format(self.port), cached=True, outfile=None, keepalive=False)
+        self.assertEqual('Must specify outfile if cached is True',
+                         str(cm.exception))
+    
+    def testGetUrl404(self):
+        """Call get_url for a file that doesn't exist"""
+        with self.assertRaises(HTTPError) as cm:
+            spacepy.toolbox.get_url('http://localhost:{}/doesnotexist.txt'.format(self.port))
+        self.assertEqual('HTTP Error 404: File not found',
+                         str(cm.exception))
+    
+    def testGetUrlSpecifyConnNoKeepAlive(self):
+        """Call get_url specifying connection but no keepalive"""
+        connection = http.client.HTTPConnection("localhost:{}".format(self.port))
+        with self.assertRaises(ValueError) as cm:
+            spacepy.toolbox.get_url('http://localhost:{}/'.format(self.port), conn=connection, keepalive=False)
+        self.assertEqual('Cannot specify connection without keepalive',
+                         str(cm.exception))
+
+    def testGetUrlReport(self):
+        """Call get_url, use report hook"""
+        hook_record = []
+        def hook(count, bs, size):
+            hook_record.append((count, bs, size))
+        with open(os.path.join(self.td, 'foo.txt'), 'wb') as f:
+            f.write(b'1' * 1536)
+        data = spacepy.toolbox.get_url(
+            'http://localhost:{}/foo.txt'.format(self.port), reporthook=hook)
+        self.assertEqual(
+            b"1" * 1536, data)
+        self.assertEqual(
+            [(1, 1024, 1536), (2, 1024, 1536)],
+            hook_record)
 
 
 if __name__ == "__main__":

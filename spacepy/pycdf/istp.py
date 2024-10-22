@@ -15,25 +15,6 @@ Additional Contributors: Lorna Ellis, Asher Merrill
 Institution: University of New Hampshire
 
 Contact: Jonathan.Niehof@unh.edu
-
-.. rubric:: Classes
-
-.. autosummary::
-    :toctree:
-    :template: clean_class.rst
-
-    FileChecks
-    VarBundle
-    VariableChecks
-
-.. rubric:: Functions
-
-.. autosummary::
-    :toctree:
-
-    fillval
-    format
-    nanfill
 """
 
 import collections
@@ -60,33 +41,6 @@ class VariableChecks(object):
     tests return a list, one error string for every noncompliance
     found (empty list if compliant). `all` will perform all
     tests and concatenate all errors.
-
-    .. autosummary::
-
-        all
-        deltas
-        depends
-        depsize
-        empty_entry
-        fieldnam
-        fillval
-        recordcount
-        validdisplaytype
-        validrange
-        validscale
-        
-    .. automethod:: all
-    .. automethod:: deltas
-    .. automethod:: depends
-    .. automethod:: depsize
-    .. automethod:: empty_entry
-    .. automethod:: fieldnam
-    .. automethod:: fillval
-    .. automethod:: recordcount
-    .. automethod:: validdisplaytype
-    .. automethod:: validrange
-    .. automethod:: validscale
-
     """
     #When adding new tests, add to list above
     #Validation failures should be formatted as a sentence (initial cap,
@@ -378,14 +332,16 @@ class VariableChecks(object):
             else numpy.all(actual == expected)
         if not match:
             if timetype:
-                converted_expected = {
-                    spacepy.pycdf.const.CDF_EPOCH.value:
-                    spacepy.pycdf.lib.v_epoch_to_datetime,
-                    spacepy.pycdf.const.CDF_EPOCH16.value:
-                    spacepy.pycdf.lib.v_epoch16_to_datetime,
-                    spacepy.pycdf.const.CDF_TIME_TT2000.value:
-                    spacepy.pycdf.lib.v_tt2000_to_datetime
-                }[v.type()](expected)
+                if v.type() == spacepy.pycdf.const.CDF_EPOCH16.value:
+                    converted_expected = spacepy.pycdf.lib.v_epoch16_to_datetime(
+                        numpy.asanyarray(expected))
+                else:
+                    converted_expected = {
+                        spacepy.pycdf.const.CDF_EPOCH.value:
+                        spacepy.pycdf.lib.v_epoch_to_datetime,
+                        spacepy.pycdf.const.CDF_TIME_TT2000.value:
+                        spacepy.pycdf.lib.v_tt2000_to_datetime
+                    }[v.type()](expected)
                 errs.append(
                     'FILLVAL {} ({}), should be {} ({}) for variable type {}.'
                     .format(
@@ -469,12 +425,14 @@ class VariableChecks(object):
         for which in (whichmin, whichmax):
             if not which in v.attrs:
                 continue
-            if v.attrs.type(which) != v.type():
+            atype = v.attrs.type(which)
+            vtype = v.type()
+            if atype != vtype:
                 errs.append(
                     '{} type {} does not match variable type {}.'.format(
                         which,
-                        spacepy.pycdf.lib.cdftypenames[v.attrs.type(which)],
-                        spacepy.pycdf.lib.cdftypenames[v.type()]))
+                        spacepy.pycdf.lib.cdftypenames[atype],
+                        spacepy.pycdf.lib.cdftypenames[vtype]))
             attrval = v.attrs[which]
             multidim = bool(numpy.shape(attrval)) #multi-dimensional
             if multidim: #Compare shapes, require only 1D var
@@ -494,12 +452,13 @@ class VariableChecks(object):
                     attrval = numpy.reshape(attrval, (1, -1))
             # min, max, variable data all same dtype
             if not numpy.can_cast(numpy.asanyarray(attrval),
-                                  numpy.asanyarray(minval).dtype):
+                                  numpy.asanyarray(minval).dtype) or \
+                (atype in spacepy.pycdf.lib.timetypes) != (vtype in spacepy.pycdf.lib.timetypes):
                 errs.append(
                     '{} type {} not comparable to variable type {}.'.format(
                         which,
-                        spacepy.pycdf.lib.cdftypenames[v.attrs.type(which)],
-                        spacepy.pycdf.lib.cdftypenames[v.type()]
+                        spacepy.pycdf.lib.cdftypenames[atype],
+                        spacepy.pycdf.lib.cdftypenames[vtype]
                     ))
                 continue # Cannot do comparisons
             if numpy.any((minval > attrval)) or numpy.any((maxval < attrval)):
@@ -657,21 +616,6 @@ class FileChecks(object):
     tests return a list, one error string for every noncompliance
     found (empty list if compliant). `all` will perform all
     tests and concatenate all errors.
-
-    .. autosummary::
-
-        all
-        empty_entry
-        filename
-        time_monoton
-        times
-        
-    .. automethod:: all
-    .. automethod:: empty_entry
-    .. automethod:: filename
-    .. automethod:: time_monoton
-    .. automethod:: times
-
     """
     #When adding new tests, add to list above.
     #Validation failures should be formatted as a sentence (initial cap,
@@ -1247,25 +1191,6 @@ class VarBundle(object):
     >
     >>> outfile.close()
     >>> infile.close()
-
-    .. autosummary::
-
-        mean
-        operations
-        output
-        slice
-        sum
-        toSpaceData
-        variables
-
-    .. automethod:: mean
-    .. automethod:: output
-    .. automethod:: operations
-    .. automethod:: slice
-    .. automethod:: sum
-    .. automethod:: toSpaceData
-    .. automethod:: variables
-
     """
 
     def __init__(self, source, name=None):

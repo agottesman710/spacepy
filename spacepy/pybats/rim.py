@@ -5,23 +5,6 @@ from the Ridley Ionosphere Model (RIM) and the similar legacy code,
 Ridley Serial.
 
 Copyright 2010 Los Alamos National Security, LLC.
-
-.. rubric:: Classes
-
-.. autosummary::
-    :toctree:
-    :template: clean_class.rst
-
-    Iono
-    OvalDebugFile
-
-.. rubric:: Functions
-
-.. autosummary::
-    :toctree:
-
-    get_iono_cb
-    tex_label
 '''
 
 import os
@@ -234,8 +217,8 @@ class Iono(PbData):
         # Create 2-D arrays.
         for key in namevar:
             nkey, skey = 'n_'+key, 's_'+key
-            self[nkey] = reshape(self[nkey], (ntheta, nphi), 'F')
-            self[skey] = reshape(self[skey], (ntheta, nphi), 'F')
+            self[nkey] = reshape(self[nkey], (ntheta, nphi), order='F')
+            self[skey] = reshape(self[skey], (ntheta, nphi), order='F')
 
         # Some extra grid info:
         self.dlon = self['n_psi'  ][0,3]-self['n_psi'  ][0,2]
@@ -246,16 +229,15 @@ class Iono(PbData):
         Calculate total horizontal current as related values.  Each will be
         stored into *self* using the typical key-value approach.  Calculations
         are done for both the northern and southern hemisphere with the
-        appropriate prefixes ('n_' and 's_') applied to each key.
+        appropriate prefixes (``n_`` and ``s_``) applied to each key.
 
-        | key  | Description |
-        |------|-------------|
-        | j    | Total horizontal current, $sqrt(jx^2+jy^2+jz^2)$ |
-        | jphi | Azimuthal current, positive values are eastward. |
-
-
-        Parameters
-        ==========
+        
+        ====== ====================================================
+        key    Description                                       
+        ====== ==================================================== 
+        j      Total horizontal current, $sqrt(jx^2+jy^2+jz^2)$  
+        jphi   Azimuthal current, positive values are eastward. 
+        ====== ====================================================
 
         Returns
         =======
@@ -289,14 +271,10 @@ class Iono(PbData):
         Iup:   The total upward current over one hemisphere.
         Idown: The total downward current over one hemisphere.
 
-        Values are stored in the object with the prefix 'n_' or 's_'
+        Values are stored in the object with the prefix ``n_`` or ``s_``
         to indicate the hemisphere and may be accessed via self['n_I'], etc.
 
         Values are stored in units of mega Amps.
-
-        Parameters
-        ==========
-
 
         Returns
         =======
@@ -424,7 +402,7 @@ class Iono(PbData):
             that is strictly positive and "Seismic" for diverging data.
             Alternatively, legacy Ridley Ionosphere Model color maps can be
             loaded using "l_wr" (white red) or "l_bwr" (blue-white-red),
-            where the "l_" prefix indicates legacy and not Matplotlib color maps.
+            where the "l\\_" prefix indicates legacy and not Matplotlib color maps.
         add_cbar : bool
             Add colorbar to plot.  Default is **False** which will
             not add one to the plot.
@@ -643,7 +621,7 @@ class OvalDebugFile(PbData):
         not an existing axes object, a new axes object is created and customized
         to be an ionosphere polar plot.
 
-        Extra arguments/kwargs are sent to :meth:`matplotlib.pyplot.plot`.
+        Extra arguments/kwargs are sent to :func:`~matplotlib.pyplot.plot`.
 
         Parameters
         ==========

@@ -8,19 +8,117 @@ This document presents user-visible changes in each release of SpacePy.
    :depth: 2
    :local:
 
+0.7 Series
+==========
+0.7.0 (2024-xx-xx)
+------------------
+Binary wheels are now provided for Linux on 64-bit ARM, intended for
+Raspberry Pi. Installing :ref:`dependencies from system packages
+<linux_dep_apt>` is recommended.
+
+New features
+************
+`.help` now supports searching the documentation.
+
+Dependency requirements
+***********************
+Numpy 2.0 is now fully supported. Several deprecations and errors
+using 2.0 were fixed.
+
+Numpy and f2py are no longer required to build SpacePy. This change
+will not be noticable to most users. Binary wheels are no longer tied
+to numpy or Python version. SpacePy will now build on numpy 1.26 and
+later on Python 3.12. Numpy is still required to run SpacePy.
+
+Sphinx 4.0 is now required to build the documentation; this is not
+a concern for most users.
+
+Support for Python 3.6 has been removed due to inability to
+test. Python 3.7 is the oldest supported Python; as a result, Astropy
+2.0 is the oldest supported Astropy (if using Astropy).
+
+Deprecations and removals
+*************************
+`~spacepy.toolbox.timeout_check_call` is deprecated as redundant to using
+`subprocess.check_call` with the ``timeout`` argument.
+
+The ``spacepy.irbempy.irbempylib`` module has been removed. This was
+the old internal interface to the IRBEM library and was not intended
+for public use.
+
+The ``data_assimilation``, ``radbelt``, and ``spacepy_EnKF`` modules
+have been moved to the "sandbox". These modules were undertested and
+minimally documented. They may be restored in the future with
+appropriate testing and docs.
+
+Major bugfixes
+**************
+`~spacepy.irbempy.find_Bmirror` now correctly returns one ``Bmirr`` per input
+pitch angle instead of ignoring all but the first.
+
+Other changes
+*************
+Operations on `~spacepy.datamodel.dmarray` which return a scalar value
+will now return a numpy :std:term:`array scalar` rather than the base
+Python type. This is consistent with the behavior of `~numpy.ndarray`.
+`~spacepy.datamodel.dmarray` also supports assigning to its ``dtype``
+and ``shape``. Together these changes should make ``dmarray`` a much
+closer drop-in replacement for `~numpy.ndarray`; in particular, these
+address known issues with conversion to masked arrays and passing to
+`~matplotlib.pyplot.pcolormesh`.
+
+Warnings issued by SpacePy are now associated with the line of the
+calling code, not with the SpacePy code itself. The
+``enable_deprecation_warning`` :doc:`configuration option <configuration>`
+has been removed and SpacePy does not force display of deprecation
+warnings, as warnings issued by SpacePy cannot be distinguished from
+other warnings. It is recommended to occasionally run Python code with
+the :option:`-Wd <-W>` option to enable deprecation warnings. See
+:py:mod:`warnings` for more details.
+
+
+0.6 Series
+==========
+0.6.0 (2024-04-25)
+------------------
+There are no changes to dependencies, minimum versions, or
+installation process with this release.
+
+New features
+************
+`.datamodel` supports output to Pandas
+(`~.datamodel.ISTPContainer.toDataFrame`) and input from Pandas
+(`~.datamodel.ISTPContainer.fromDataFrame`). This support requires
+pandas 0.18.0, which is not installed by default with SpacePy.
+
+`~.datamodel.dmarray` supports output to Astropy Quantities
+(`~.datamodel.ISTPArray.toQuantity`) and input from them
+(`~.datamodel.ISTPArray.fromQuantity`). This support requires Astropy
+1.0, which is not installed by default with SpacePy.
+
+`~.pybats.ImfInput` now has two new methods:
+:meth:`~.pybats.ImfInput.calc_clock` which, calculates and stores the IMF
+clock angle defined as the angle of the interplanetary magnetic field (IMF) in
+the GSM Y-Z plane; and :meth:`~.pybats.ImfInput.calc_epsilon`, which calculates
+the epsilon parameter, an approximation of power input into the magnetosphere.
+
 0.5 Series
 ==========
-0.5.0 (2022-xx-xx)
+0.5.0 (2024-03-11)
 ------------------
 This release marks the end of all support for Python 2. SpacePy now
 requires Python 3.6 or later. Minimum supported versions for other
 dependencies were also increased; see :ref:`release_0_5_0_deps` for details.
 
+The SpacePy team now delivers binary wheels for all supported Python
+versions (3.6-3.12) for 64-bit Windows, Linux, and Mac. Most users
+will not need to build SpacePy; see :doc:`install` for details.
+
 Due to changes in f2py, SpacePy 0.5.0 will not build on Python 3.12
 with numpy 1.26 or later. It will, however, run fine. The SpacePy team
-provides binary wheels for Mac and Windows. Linux users who wish to
-use Python 3.12 should first install numpy (which will likely be built
-from source)::
+provides binary wheels for Mac and Windows. Users who wish to build
+from source on Python 3.12 should first install numpy (which will
+likely be built from source)::
 
   pip install --no-build-isolation "numpy<1.26"
   pip install --no-build-isolation spacepy
@@ -37,6 +135,8 @@ The ``setup.py`` based install process is no longer supported; as such,
 ``pip`` and ``setuptools`` are now required. ``wheel`` is required if
 building from source. The vast majority of modern Python distributions
 already have these requirements.
+
+Installing from ``pip`` normally installs all necessary dependencies.
 
 The minimum supported version of all dependencies was updated in
 SpacePy 0.5.0. Minimum versions are:
@@ -87,7 +187,7 @@ and `~.pybats.bats.Bats2d.calc_upar` methods.
 
 `~.pybats.bats.Bats2d` objects and the class that handles quad tree building
 (`~.pybats.qotree.QTree`) now accepts a keyword argument to set the size
-of each block: `blocksize`. Default value is 8.
+of each block: ``blocksize``. Default value is 8.
 
 `~.toolbox.dictree` now supports returning the output instead of printing it.
 
@@ -293,7 +393,7 @@ Colourmaps have been removed from :class:`~spacepy.plot`. The same
 colourmaps (``plasma`` and ``viridis``) have been available in
 matplotlib since at least 1.5. (Deprecated in 0.2.3.)
 
-The old name ``spectrogram`` for :class:`~spacepy.plot.Spectrogram`
+The old name ``spectrogram`` for :class:`~spacepy.plot.spectrogram`
 has been removed. (Deprecated in 0.2.2.)
 
 The ``read_ram_dst`` function has been removed from
@@ -450,18 +550,18 @@ still to make backward-compatible CDFs, but this will change in
 specifying a time type; the default is still to use EPOCH or
 EPOCH16, but this will change to TIME_TT2000 in 0.3.0.
 
-:func:`~spacepy.pybats.rim.fix_format` is now deprecated, as
+``spacepy.pybats.rim.fix_format()`` is now deprecated, as
 :class:`~spacepy.pybats.rim.Iono` can now read these files directly.
 
 Quaternion math functions have been moved to
 :mod:`~spacepy.coordinates`; using the functions in
 :mod:`~spacepy.toolbox` is deprecated.
 
-:func:`~spacepy.toolbox.feq` is deprecated; numpy 1.7 added the equivalent
+``spacepy.toolbox.feq()`` is deprecated; numpy 1.7 added the equivalent
 :func:`~numpy.isclose`.
 
 The :class:`~spacepy.plot.spectrogram` class is now capitalized
-(:class:`~spacepy.plot.Spectrogram`); the old, lower-case variant is
+(:class:`~spacepy.plot.spectrogram`); the old, lower-case variant is
 kept for compatibility but will be removed.
 
 Dependency requirements

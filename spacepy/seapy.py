@@ -81,9 +81,10 @@ class SeaBase(object):
         if nonmon or noncontig:
             warnings.warn('Input time not {}; results are unlikely to be valid.'.format(
                           ('monotonic or contiguous' if nonmon else 'contiguous')
-                          if noncontig else 'monotonic'))
+                          if noncontig else 'monotonic'), stacklevel=2)
         if len(epochs) > len(times) / 2:
-            warnings.warn('Too many epochs; results are unlikely to be valid.')
+            warnings.warn('Too many epochs; results are unlikely to be valid.',
+                          stacklevel=2)
         if isinstance(epochs, spt.Ticktock):
             self.epochs = epochs.UTC
         else:
@@ -102,7 +103,7 @@ class SeaBase(object):
         if kwargs['window'] != self.window:
             warnings.warn(
                 'Window size changed to {0} (points) to fit resolution ({1})'.format(
-                self.window, self.delta))
+                    self.window, self.delta), stacklevel=2)
         self.bound_type = None
 
     def __str__(self):
@@ -242,13 +243,6 @@ class Sea(SeaBase):
     =====
     Output can be nicely plotted with :py:meth:`plot`, or for multiple objects
     use the :py:func:`multisea` function
-
-    .. currentmodule:: spacepy.seapy
-    .. autosummary::
-        ~Sea.sea
-        ~Sea.plot
-    .. automethod:: sea
-    .. automethod:: plot
     """
     def __init__(self, data, times, epochs, window=3., delta=1., verbose=True):
         super(Sea, self).__init__(data, times, epochs, \
@@ -316,12 +310,12 @@ class Sea(SeaBase):
             enpt = j[0][0]+wind+1
             sea_slice = blankslice.copy()
             if stpt < 0: #fix for bad epochs not correctly moved to badepochs attr #TODO: make badepochs robust or do all checking here
-                sea_slice[0:abs(stpt)] = np.NaN
+                sea_slice[0:abs(stpt)] = np.nan
                 sea_slice[abs(stpt):] = y[0:enpt]
             elif enpt >= len(y):
                 tmpslice = y[stpt:]
                 sea_slice[:len(tmpslice)] = tmpslice
-                sea_slice[len(tmpslice):] = np.NaN
+                sea_slice[len(tmpslice):] = np.nan
             else:
                 sea_slice = y[stpt:enpt]
 
@@ -603,14 +597,6 @@ class Sea2d(SeaBase):
     =====
     Output can be nicely plotted with :meth:`plot`, or for multiple
     objects use the :func:`multisea` function
-
-
-    .. currentmodule:: spacepy.seapy
-    .. autosummary::
-        ~Sea2d.sea
-        ~Sea2d.plot
-    .. automethod:: sea
-    .. automethod:: plot
     """
     def __init__(self, data, times, epochs, window=3., delta=1., verbose=False, y=[]):
         super(Sea2d, self).__init__(data, times, epochs, window=window, \

@@ -86,35 +86,6 @@ here) use a centered dipole axis.
     the centered dipole axis of date. The y-axis is perpendicular to
     to both the dipole axis and True North, i.e., y is the cross product of
     the z-axis of the GEO system with the dipole axis. The x-axis completes.
-
-Classes
--------
-.. autosummary::
-    :template: clean_class.rst
-    :toctree: autosummary
-
-    CTrans
-    Ellipsoid
-
-Functions
----------
-.. autosummary::
-    :template: clean_function.rst
-    :toctree: autosummary
-
-    convert_multitime
-    gdz_to_geo
-    geo_to_gdz
-    geo_to_rll
-    rll_to_geo
-
-Submodules
-----------
-.. autosummary::
-    :template: clean_module.rst
-    :toctree: autosummary
-
-    iau80n
 """
 
 __contact__ = 'Steve Morley, smorley@lanl.gov'
@@ -213,27 +184,6 @@ class CTrans(dm.SpaceData):
     -----
 
     .. versionadded:: 0.3.0
-
-
-    .. rubric:: Methods
-
-    .. autosummary::
-
-        ~CTrans.calcTimes
-        ~CTrans.calcOrbitParams
-        ~CTrans.calcCoreTransforms
-        ~CTrans.calcMagTransforms
-        ~CTrans.convert
-        ~CTrans.getEOP
-        ~CTrans.gmst
-
-    .. automethod:: calcTimes
-    .. automethod:: calcOrbitParams
-    .. automethod:: calcCoreTransforms
-    .. automethod:: calcMagTransforms
-    .. automethod:: convert
-    .. automethod:: getEOP
-    .. automethod:: gmst
     """
     def __init__(self, ctime, ephmodel=None, pnmodel=None, eop=False):
         super(CTrans, self).__init__()
@@ -470,7 +420,8 @@ class CTrans(dm.SpaceData):
         if not pnmodel == 'IAU82':
             import warnings
             warnings.warn('Only the IAU1980 nutation model is currently implemented. '
-                          + 'This will be used with the selected precession model.')
+                          + 'This will be used with the selected precession model.',
+                          stacklevel=2)
         else:
             from . import iau80n
             dPsi, dEps = iau80n.nutation(self['TT_JC'], self['constants'], nTerms)
@@ -935,7 +886,8 @@ class CTrans(dm.SpaceData):
             error = np.abs(ecc_anom - ecc_anom_old)
         if count >= maxiter:
             import warnings
-            warnings.warn('Estimation of eccentric anomaly failed to converge')
+            warnings.warn('Estimation of eccentric anomaly failed to converge',
+                          stacklevel=2)
         return ecc_anom
 
 

@@ -27,8 +27,11 @@ __contact__ = 'Jon Niehof, jniehof@lanl.gov'
 
 #Handy shortcut types
 dptr = ctypes.POINTER(ctypes.c_double)
+"""alias of LP_c_double"""
 ulptr = ctypes.POINTER(ctypes.c_ulong)
+"""alias of LP_c_ulong"""
 lptr = ctypes.POINTER(ctypes.c_long)
+"""alias of LP_c_long"""
 
 #Dictionary of function signatures
 #Key is name of function, value is a list of types
@@ -91,8 +94,10 @@ def load_lib():
     Normally this will be in the directory where spacepy is installed,
     under libspacepy.
 
-    @return: the open library
-    @rtype: ctypes.CDLL or ctypes.WinDLL
+    Returns
+    =======
+    library : ctypes.CDLL or ctypes.winDLL
+        the open library
     """
     libdir = os.path.dirname(os.path.abspath(__file__))
     libnames = {
@@ -119,11 +124,15 @@ def load_lib():
 def load_call_dict(call_dict, lib):
     """Loads argument/return types from the call dictionary
 
-    @param call_dict: call dictionary. Keyed by function name;
-                      values are [return type, argtype0, argtype 1...]
-    @type call_dict: dict
-    @param lib: library where functions specified in L{call_dict} live.
-    @type lib: ctypes.WinDLL or ctypes.CDLL
+    Parameters
+    ==========
+    call_dict : dict
+        call dictionary. Keyed by function name;
+        values are [return type, argtype0, argtype 1...]
+    
+    lib : ctypes.CDLL
+        library where functions specified in ``call_dict`` live.
+
     """
     for funcname in call_dict:
         func = getattr(lib, funcname)

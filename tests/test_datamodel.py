@@ -16,9 +16,9 @@ import os
 import os.path
 import pickle
 import shutil
+import sys
 import tempfile
 import unittest
-import sys
 import warnings
 
 import spacepy_testing
@@ -27,10 +27,11 @@ import spacepy.pycdf
 import spacepy.pycdf.const
 import spacepy.time as spt
 import numpy as np
+import numpy.testing
 
 
 __all__ = ['SpaceDataTests', 'dmarrayTests', 'converterTests', 'JSONTests', 'converterTestsCDF',
-           'VariableTests', 'ISTPPlotTests']
+           'VariableTests', 'ISTPPlotTests', 'dmarrayPlotTests']
 
 
 class SpaceDataTests(unittest.TestCase):
@@ -583,6 +584,50 @@ class dmarrayTests(unittest.TestCase):
         expected = [sd[key].dtype for key in sd]
         got = [ra.dtype[name] for name in ra.dtype.names]
         self.assertEqual(expected, got)
+
+    def test_scalar_output(self):
+        """ufuncs should return numpy scalar not 0D array"""
+        d = dm.dmarray([1, 2, 3], dtype=np.int32)
+        res = d.max()
+        self.assertIsInstance(res, np.int32)
+        d = dm.dmarray([[1, 2, 3], [4, 5, 6]])
+        res = d.max(axis=1)
+        self.assertIsInstance(res, dm.dmarray)
+
+    def test_empty_median(self):
+        """median of empty array is nan"""
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore', '^(Mean of empty slice|invalid value encountered)',
+                                    RuntimeWarning, '^numpy.*')
+            ans = np.median(dm.dmarray([]))
+        self.assertTrue(np.isnan(ans))
+
+    def test_ufunc_of_ma(self):
+        """Convert dmarray to ma and call scalar ufunc"""
+        ans = np.ma.masked_array(self.dat).min()
+        self.assertEqual(1., ans)
+
+    def test_reshape(self):
+        """Reshape dmarray by assigning to shape"""
+        self.dat.shape = (2, 2)
+        self.assertEqual((2, 2), self.dat.shape)
+        numpy.testing.assert_array_equal(self.dat, [[1, 2], [3, 4]])
+        self.assertEqual(
+            {'a': 'a', 'b': 'b'},
+            self.dat.attrs)
+
+    def test_dtype(self):
+        """Reshape dmarray by assigning to shape"""
+        dat = dm.dmarray([65, 66, 67], dtype=np.int8,
+                         attrs={'a': 'a', 'b': 'b'})
+        self.assertEqual('i', dat.dtype.kind)
+        dat.dtype = '|S1'
+        self.assertEqual('S', dat.dtype.kind)
+        numpy.testing.assert_array_equal(dat, [b'A', b'B', b'C'])
+        self.assertEqual(
+            {'a': 'a', 'b': 'b'},
+            dat.attrs)
+
         
 class converterTests(unittest.TestCase):
     def setUp(self):
@@ -699,9 +744,8 @@ class converterTests(unittest.TestCase):
 
     def test_toHDF5String(self):
         """Convert to HDF5 with (unicode) strings"""
-        # Can change to just strings when drop python 2
-        a = dm.SpaceData({'scalar': dm.dmarray(b'foo'.decode()),
-                          'dat': dm.dmarray([b'foo'.decode(), b'bar'.decode()])
+        a = dm.SpaceData({'scalar': dm.dmarray('foo'),
+                          'dat': dm.dmarray(['foo', 'bar'])
         })
         a.toHDF5(self.testfile, mode='a')
         newobj = dm.fromHDF5(self.testfile)
@@ -709,6 +753,20 @@ class converterTests(unittest.TestCase):
         self.assertEqual('U', newobj['scalar'].dtype.kind)
         np.testing.assert_array_equal(a['dat'], newobj['dat'])
         np.testing.assert_array_equal(a['scalar'], newobj['scalar'])
+
+    def test_toHDF5ObjectArray(self):
+        """Convert to HDF5 with object array input"""
+        class foo:
+            def __str__(self):
+                return 'foo'
+        a = dm.SpaceData({
+            'test': dm.dmarray([foo(), foo()])})
+        a.toHDF5(self.testfile, mode='a')
+        newobj = dm.fromHDF5(self.testfile)
+        np.testing.assert_array_equal(
+            np.array(['foo', 'foo'], dtype='S'),
+            newobj['test'])
+        self.assertEqual('|S35', newobj['test'].dtype)
 
     def test_HDF5Exceptions(self):
         """HDF5 has warnings and exceptions"""
@@ -844,6 +902,15 @@ class converterTestsCDF(unittest.TestCase):
         self.assertEqual('Cannot use TT2000 in backward-compatible CDF.',
                          str(cm.exception))
 
+    def test_toCDF_objectNRV(self):
+        self.SDobj['Epoch'] = dm.dmarray([
+            datetime.datetime(2010, 1, i) for i in range(1, 11)])
+        self.SDobj['nrv'] = dm.dmarray([
+            'X', 'Y', 'Z'], dtype='O')
+        self.SDobj.toCDF(self.testfile)
+        with spacepy.pycdf.CDF(self.testfile) as f:
+            self.assertFalse(f['nrv'].rv())
+
 
 class JSONTests(unittest.TestCase):
     def setUp(self):
@@ -955,7 +1022,7 @@ class JSONTests(unittest.TestCase):
             with open(self.filename, 'rb') as f_in:
                 gzipname = os.path.join(tmpdirname, os.path.basename(self.filename) + '.gz')
                 with gzip.open(gzipname, 'wb') as f_out:
-                    f_out.writelines(f_in)  # py2
+                    f_out.writelines(f_in)
             dat = dm.readJSONheadedASCII(gzipname, convert=True)
             self.readJSONheadedASCII_checking(dat)
         finally:
@@ -973,7 +1040,7 @@ class JSONTests(unittest.TestCase):
             with open(self.filename, 'rb') as f_in:
                 gzipname = os.path.join(tmpdirname, os.path.basename(self.filename) + '.gz')
                 with gzip.open(gzipname, 'wb') as f_out:
-                    f_out.writelines(f_in)  # py2
+                    f_out.writelines(f_in)
             dat = dm.readJSONheadedASCII([gzipname, self.filename], convert=True)
             self.readJSONheadedASCII_checking(dat, double=True)
         finally:
@@ -1204,6 +1271,7 @@ class VariableTests(unittest.TestCase):
 class ISTPPlotTests(spacepy_testing.TestPlot):
     """Test ISTP-based SpaceData"""
     # Not all tests use plotting, but many do, and need a single line of inheritance
+    longMessage = True
 
     def setUp(self):
         super().setUp()
@@ -1277,7 +1345,7 @@ class ISTPPlotTests(spacepy_testing.TestPlot):
                        'FORMAT': 'F6.1',
                        'LABLAXIS': 'H rate',
                        'SCALETYP': 'log',
-                       'UNITS': 'counts/s',
+                       'UNITS': 's!E-1!N',
                        'VALIDMAX': 1000.,
                        'VALIDMIN': 0.,
                        'VAR_TYPE': 'data'}),
@@ -1403,7 +1471,7 @@ class ISTPPlotTests(spacepy_testing.TestPlot):
             np.testing.assert_array_equal(lines[i].get_xdata(), self.sd['Epoch'])
             np.testing.assert_array_equal(lines[i].get_ydata(),
                                           self.sd['B_vec'][:, i])
-        self.assertEqual('B (nT)', ax.get_ylabel())
+        self.assertEqual('B ($nT$)', ax.get_ylabel())
         self.assertEqual('UT', ax.get_xlabel())
         self.assertEqual(['X', 'Y', 'Z'], [t.get_text() for t in ax.get_legend().texts])
         fig = ax.get_figure()
@@ -1418,7 +1486,19 @@ class ISTPPlotTests(spacepy_testing.TestPlot):
         self.assertEqual(1, len(lines))
         np.testing.assert_array_equal(lines[0].get_xdata(), self.sd['Epoch'])
         np.testing.assert_array_equal(lines[0].get_ydata(), self.sd['B_mag'])
-        self.assertEqual('B (nT)', ax.get_ylabel())
+        self.assertEqual('B ($nT$)', ax.get_ylabel())
+        self.assertEqual('UT', ax.get_xlabel())
+        self.assertIs(None, ax.get_legend())
+
+    def test_lineplot_timeseries_1D_blank_units(self):
+        """Plot a timeseries with a single line, empty units"""
+        self.sd['B_mag'].attrs['UNITS'] = ' '
+        ax = self.sd.lineplot('B_mag')
+        lines = ax.get_lines()
+        self.assertEqual(1, len(lines))
+        np.testing.assert_array_equal(lines[0].get_xdata(), self.sd['Epoch'])
+        np.testing.assert_array_equal(lines[0].get_ydata(), self.sd['B_mag'])
+        self.assertEqual('B', ax.get_ylabel())
         self.assertEqual('UT', ax.get_xlabel())
         self.assertIs(None, ax.get_legend())
 
@@ -1582,8 +1662,8 @@ class ISTPPlotTests(spacepy_testing.TestPlot):
         self.assertAlmostEqual(self.sd['H_Rate'].min(), ylim[0])
         self.assertAlmostEqual(self.sd['H_Rate'].max(), ylim[1])
         self.assertEqual('UT', ax.get_xlabel())
-        self.assertEqual('Energy (keV)', ax.get_ylabel())
-        self.assertEqual('H rate (counts/s)', cb.get_ylabel())
+        self.assertEqual('Energy ($keV$)', ax.get_ylabel())
+        self.assertEqual('H rate ($s^{-1}$)', cb.get_ylabel())
         self.assertEqual(1, len(fig.texts))
         self.assertEqual(self.sd['H_Rate'].attrs['CATDESC'],
                          fig.texts[0].get_text())
@@ -1595,7 +1675,8 @@ class ISTPPlotTests(spacepy_testing.TestPlot):
         self.assertEqual(4, len(axes))  # 3 plots, one colorbar
         ylabels = [ax.get_ylabel() for ax in axes]
         self.assertEqual(
-            ['B (nT)', 'B (nT)', 'Energy (keV)', 'H rate (counts/s)'], ylabels)
+            ['B ($nT$)', 'B ($nT$)', 'Energy ($keV$)', 'H rate ($s^{-1}$)'],
+            ylabels)
         self.assertFalse(axes[1].get_legend() is None)
         self.assertIs(axes[0].get_legend(), None)
 
@@ -1615,7 +1696,148 @@ class ISTPPlotTests(spacepy_testing.TestPlot):
         self.assertEqual(3, len(axes))  # 2 plots, one colorbar
         ylabels = [ax.get_ylabel() for ax in axes]
         self.assertEqual(
-            ['B (nT)', 'Energy (keV)', 'H rate (counts/s)'], ylabels)
+            ['B ($nT$)', 'Energy ($keV$)', 'H rate ($s^{-1}$)'], ylabels)
+
+    def test_units(self):
+        """Get units of a variable"""
+        # In order of: input unit, then results for minimal, latex, astropy
+        cases = [
+            # PSP FIELDS
+            ('nT', 'nT', 'nT', 'nT'),
+            # EPI-Lo
+            ('cm!U-2!N s!U-1!N sr!U-1!N keV!U-1!N', 'cm^-2 s^-1 sr^-1 keV^-1',
+             'cm^{-2} s^{-1} sr^{-1} keV^{-1}', 'cm^-2 s^-1 sr^-1 keV^-1'),
+            # SPC
+            ('cm^{-3}', 'cm^-3', 'cm^{-3}', 'cm^-3'),
+            # HOPE
+            ('s!E-1!Ncm!E-2!Nster!E-1!NkeV!E-1!N', 's^-1 cm^-2 ster^-1 keV^-1',
+             's^{-1}cm^{-2}ster^{-1}keV^{-1}', 's^-1cm^-2sr^-1keV^-1',),
+            # ACE SWICS and similar ideas
+            ('1/cm^3', '1/cm^3', '1/cm^3', '1/cm^3'),
+            ('#/cm^3', '#/cm^3', '\\#/cm^3', '1/cm^3'),
+            ('#/cc', '#/cc', '\\#/cc', '1/cm^3'),
+            ('cc', 'cc', 'cc', 'cm^3'),
+            ]
+        formats = ['raw', 'minimal', 'latex', 'astropy']
+        for c in cases:
+            foo = dm.dmarray([], attrs={'UNITS': c[0]})
+            for i, f in enumerate(formats):
+                self.assertEqual(c[i], foo.units(f),
+                                 '{}: {}'.format(c[0], f))
+
+    def test_toDataFrame(self):
+        """Convert SpaceData to Pandas DataFrame"""
+        df = self.sd.toDataFrame('B_vec')
+        np.testing.assert_allclose(df.values, self.sd['B_vec'])
+        np.testing.assert_array_equal(df.index.to_pydatetime(),
+                                      self.sd['Epoch'])
+        np.testing.assert_array_equal(df.columns, self.sd['B_labels'])
+        # Copy is default
+        self.assertFalse(np.may_share_memory(df.values, self.sd['B_vec']))
+
+    def test_toDataFrameNoCopy(self):
+        """Convert to DataFrame, do not copy data"""
+        df = self.sd.toDataFrame('B_vec', copy=False)
+        self.assertTrue(np.may_share_memory(df.values, self.sd['B_vec']))
+
+    def test_toDataFrameNoVar(self):
+        """Convert to DataFrame, do not specify variable"""
+        with self.assertRaises(ValueError) as cm:
+            df = self.sd.toDataFrame()
+        self.assertEqual(
+            'No variable specified; possible matches: B_mag, B_vec, H_Rate.',
+            str(cm.exception))
+        data = dm.SpaceData(attrs=self.sd.attrs)
+        for k in ['Epoch', 'B_labels', 'B_vec', 'dim']:
+            data[k] = self.sd[k]
+        df = data.toDataFrame()
+        np.testing.assert_allclose(df.values, self.sd['B_vec'])
+
+    def test_toDataFrameFill(self):
+        """Convert to DataFrame, handle fill"""
+        self.sd['B_vec'][5, 0] = -1e31
+        df = self.sd.toDataFrame('B_vec')
+        self.assertTrue(np.isnan(df.values[5, 0]))
+
+    def test_toDataFrameScalar(self):
+        """Convert to DataFrame, scalar records"""
+        df = self.sd.toDataFrame('B_mag')
+        np.testing.assert_allclose(df.values, self.sd['B_mag'].reshape((-1, 1)))
+        np.testing.assert_array_equal(df.columns, ['B_mag'])
+
+    def test_fromDataFrame(self):
+        import pandas
+        d = np.array(self.sd['B_vec'])
+        d[0, 0] = np.nan  # put in a fill value to test
+        df = pandas.DataFrame(
+            data=d,
+            index=self.sd['Epoch'],
+            columns=self.sd['B_labels'],
+            copy=True,
+            )
+        d[0, 0] = -1e31  # replace nan with fill
+        sdout = dm.SpaceData.fromDataFrame(df)
+        np.testing.assert_allclose(np.array(sdout['data']), d)
+        np.testing.assert_array_equal(sdout['Epoch'], self.sd['Epoch'])
+        self.assertAlmostEqual(-1e31, sdout['data'].attrs['FILLVAL'])
+        self.assertEqual('Epoch', sdout['data'].attrs['DEPEND_0'])
+        self.assertEqual('Labels', sdout['data'].attrs['LABL_PTR_1'])
+        np.testing.assert_array_equal(sdout['Labels'], self.sd['B_labels'])
+        self.assertEqual('U', sdout['Labels'].dtype.kind)
+        np.testing.assert_array_equal(sdout['ColumnNumbers'], [0, 1, 2])
+
+    def test_toQuantityFill(self):
+        """Convert to AstroPy quantity, use fill"""
+        self.sd['B_vec'][5, 0] = -1e31
+        q = self.sd['B_vec'].toQuantity(copy=False)
+        # test something more robust than just same unit string in/out
+        self.assertEqual('1e-09 T', q.unit.si.to_string())
+        self.assertTrue(np.isnan(q.value[5, 0]))
+        np.testing.assert_allclose(q.value[6:, :], self.sd['B_vec'][6:, :])
+        # replacing fill with nan means a copy was made
+        self.assertFalse(np.may_share_memory(q.value, self.sd['B_vec']))
+
+    def test_toQuantityNoCopy(self):
+        """Convert to AstroPy quantity, do not make copy"""
+        q = self.sd['B_vec'].toQuantity(copy=False)
+        self.assertEqual('1e-09 T', q.unit.si.to_string())
+        np.testing.assert_allclose(q.value, self.sd['B_vec'])
+        self.assertTrue(np.may_share_memory(q.value, self.sd['B_vec']))
+
+    def test_fromQuantityFill(self):
+        """Convert from AstroPy quantity with invalid values"""
+        import astropy.units
+        q = astropy.units.Quantity([1, 2, np.nan, 3], 'km/s')
+        d = dm.dmarray.fromQuantity(q, copy=False)
+        np.testing.assert_allclose(d, [1, 2, -1e31, 3])
+        self.assertEqual({
+            'FILLVAL': -1e31,
+            'SI_Conversion': '1.e3>m/s',
+            'UNITS': 'km / s',
+        }, d.attrs)
+        # replaced nan with fill, definite copy
+        self.assertFalse(np.may_share_memory(q.value, d))
+
+    def test_fromQuantityNoCopy(self):
+        """Convert from AstroPy quantity, do not copy data"""
+        import astropy.units
+        q = astropy.units.Quantity([1, 2, 3], 'km')
+        d = dm.dmarray.fromQuantity(q, copy=False)
+        np.testing.assert_allclose(d, [1, 2, 3])
+        self.assertTrue(np.may_share_memory(q.value, d))
+
+
+class dmarrayPlotTests(spacepy_testing.TestPlot):
+    """Test dmarray interaction with plotting / matplotlib"""
+
+    def test_pcolormesh(self):
+        """Pass dmarray to simple pcolormesh"""
+        d = dm.dmarray([[1, 2, 3], [4, 5, 6]])
+        import matplotlib.pyplot
+        qm = matplotlib.pyplot.pcolormesh(d)
+        # get_array is inconsistent about whether it's flattened
+        numpy.testing.assert_array_almost_equal(
+            d.flatten(), qm.get_array().flatten())
 
 
 if __name__ == "__main__":

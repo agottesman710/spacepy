@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""
-This package provides a Python interface to the Common Data Format (CDF)
-library used for many NASA missions, available at http://cdf.gsfc.nasa.gov/.
+"""Interface to the Common Data Format (CDF) library
+
+CDF available at http://cdf.gsfc.nasa.gov/.
 
 The interface is intended to be 'pythonic' rather than reproducing the
 C interface. To open or close a CDF and access its variables, see the `CDF`
@@ -13,15 +13,19 @@ that affect the functionality of the library in general. The
 `~spacepy.pycdf.const` module contains constants useful for accessing
 the underlying library.
 
+The CDF C library must be properly installed in order to use this
+module. Installing SpacePy from a binary installation provides this
+requirement.
 
-The CDF C library must be properly installed in order to use this package.
 The CDF distribution provides scripts meant to be called in a user's
-login scripts, ``definitions.B`` for bash and ``definitions.C`` for C-shell
-derivatives. (See the installation instructions which come with the CDF library.)
-These will set environment variables specifying the location
-of the library; pycdf will respect these variables if they are set. Otherwise
-it will search the standard system library path and the default installation
-locations for the CDF library.
+login scripts, ``definitions.B`` for bash and ``definitions.C`` for
+C-shell derivatives. (See the installation instructions which come
+with the CDF library.)  These will set environment variables
+specifying the location of the library; pycdf will respect these
+variables if they are set. Otherwise it will search the standard
+system library path and the default installation locations for the CDF
+library, falling back to the version shipped with the SpacePy binary
+if the library is not found.
 
 If pycdf has trouble finding the library, try setting ``CDF_LIB`` before importing
 the module, e.g. if the library is in ``CDF/lib`` in the user's home directory:
@@ -40,8 +44,11 @@ Institution: University of New Hampshire
 
 Contact: Jonathan.Niehof@unh.edu
 
+For additional documentation :doc:`../pycdf`
+
 
 Copyright 2010-2015 Los Alamos National Security, LLC.
+
 """
 
 __contact__ = 'Jon Niehof, Jonathan.Niehof@unh.edu'
@@ -101,91 +108,17 @@ class Library(object):
 
     Instantiating this object loads the C library, see :doc:`/pycdf` docs
     for details.
-
-    .. autosummary::
-
-        ~Library.call
-        ~Library.check_status
-        ~Library.datetime_to_epoch
-        ~Library.datetime_to_epoch16
-        ~Library.datetime_to_tt2000
-        ~Library.epoch_to_datetime
-        ~Library.epoch_to_epoch16
-        ~Library.epoch_to_num
-        ~Library.epoch_to_tt2000
-        ~Library.epoch16_to_datetime
-        ~Library.epoch16_to_epoch
-        ~Library.epoch16_to_tt2000
-        ~Library.get_minmax
-        ~Library.set_backward
-        supports_int8
-        ~Library.tt2000_to_datetime
-        ~Library.tt2000_to_epoch
-        ~Library.tt2000_to_epoch16
-        v_datetime_to_epoch
-        v_datetime_to_epoch16
-        v_datetime_to_tt2000
-        v_epoch_to_datetime
-        v_epoch_to_tt2000
-        v_epoch16_to_datetime
-        v_epoch16_to_tt2000
-        v_tt2000_to_datetime
-        v_tt2000_to_epoch
-        v_tt2000_to_epoch16
-        libpath
-        version
-
-    .. automethod:: call
-    .. automethod:: check_status
-    .. automethod:: datetime_to_epoch
-    .. automethod:: datetime_to_epoch16
-    .. automethod:: datetime_to_tt2000
-    .. automethod:: epoch_to_datetime
-    .. automethod:: epoch_to_epoch16
-    .. automethod:: epoch_to_num
-    .. automethod:: epoch_to_tt2000
-    .. automethod:: epoch16_to_datetime
-    .. automethod:: epoch16_to_epoch
-    .. automethod:: epoch16_to_tt2000
-    .. automethod:: get_minmax
-    .. automethod:: set_backward
-    .. attribute:: supports_int8
-
-       True if this library supports INT8 and TIME_TT2000 types; else False.
-
-    .. automethod:: tt2000_to_datetime
-    .. automethod:: tt2000_to_epoch
-    .. automethod:: tt2000_to_epoch16
-    .. automethod:: v_datetime_to_epoch
-    .. automethod:: v_datetime_to_epoch16
-    .. automethod:: v_datetime_to_tt2000
-    .. automethod:: v_epoch_to_datetime
-    .. automethod:: v_epoch_to_tt2000
-    .. automethod:: v_epoch16_to_datetime
-    .. automethod:: v_epoch16_to_tt2000
-    .. automethod:: v_tt2000_to_datetime
-    .. automethod:: v_tt2000_to_epoch
-    .. automethod:: v_tt2000_to_epoch16
-
-    .. attribute:: libpath
-
-       The path where pycdf found the CDF C library, potentially useful in
-       debugging. If this contains just the name of a file (with no path
-       information), then the system linker found the library for pycdf.
-       On Linux, ``ldconfig -p`` may be useful for displaying the system's
-       library resolution.
-
-    .. attribute:: version
-
-       Version of the CDF library, (version, release, increment, subincrement)
     """
     supports_int8 = True
     """True if this library supports INT8 and TIME_TT2000 types; else False."""
     libpath = ''
     """The path where pycdf found the CDF C library, potentially useful in
-       debugging."""
+       debugging. If this contains just the name of a file (with no path
+       information), then the system linker found the library for pycdf.
+       On Linux, ``ldconfig -p`` may be useful for displaying the system's
+       library resolution."""
     version = (0, 0, 0, '')
-    """Version of the CDF library"""
+    """Version of the CDF library, (version, release, increment, subincrement)"""
 
     _arm32 = platform.uname()[4].startswith('arm') and sys.maxsize <= 2 ** 32
     """Excuting on 32-bit ARM, which requires typepunned arguments"""
@@ -222,6 +155,7 @@ class Library(object):
             1. Appropriately-named file in CDF_LIB
             2. Appropriately-named file in CDF_BASE
             3. Standard library search path
+            
         @raise CDFError: BAD_DATA_TYPE if can't map types properly
         """
 
@@ -324,7 +258,7 @@ class Library(object):
             if ctypes.sizeof(ctypes.c_longlong) != \
                ctypes.sizeof(ctypes.c_double):
                 warnings.warn('ARM with unknown type sizes; '
-                              'TT2000 functions will not work.')
+                              'TT2000 functions will not work.', stacklevel=2)
             else:
                 if self._library.computeTT2000(
                         _cast_ll(2010), _cast_ll(1), _cast_ll(1),
@@ -332,7 +266,8 @@ class Library(object):
                         _cast_ll(0), _cast_ll(0), _cast_ll(0)
                 ) != 315576066184000000:
                     warnings.warn('ARM with unknown calling convention; '
-                                  'TT2000 functions will not work.')
+                                  'TT2000 functions will not work.',
+                                  stacklevel=2)
                 self.datetime_to_tt2000 = self._datetime_to_tt2000_typepunned
         if self.epoch_to_datetime(63113903999999.984).year != 1999:
             self.epoch_to_datetime = self._epoch_to_datetime_bad_rounding
@@ -401,8 +336,8 @@ class Library(object):
         Returns
         =======
         out : tuple
-             This is either (path to library, loaded library)
-             or, in the event of failure, (None, list of libraries tried)
+            This is either (path to library, loaded library)
+            or, in the event of failure, (None, list of libraries tried)
         """
         failed = []
         for libpath in Library._lib_paths():
@@ -490,6 +425,12 @@ class Library(object):
                 for d in sorted(cand)[::-1]:
                     for p in search_dir(d):
                         yield p
+        # Check for a version shipped with SpacePy binary wheels
+        if isinstance(__file__, str):
+            spdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            if os.path.isdir(spdir):
+                for p in search_dir(spdir):
+                    yield p
 
     def check_status(self, status, ignore=()):
         """
@@ -543,7 +484,7 @@ class Library(object):
         ==========
         args : various, see `ctypes`
             Passed directly to the CDF library interface. Useful
-            constants are defined in the `~pycdf.const` module.
+            constants are defined in the :mod:`~spacepy.pycdf.const` module.
 
         Other Parameters
         ================
@@ -1160,7 +1101,6 @@ class Library(object):
         out : tuple
             minimum, maximum value supported by type (of type matching the
             CDF type).
-
         """
         try:
             cdftype = cdftype.value
@@ -1277,57 +1217,6 @@ class Library(object):
         pass
 
 
-def download_library():
-    """Download and install the CDF library"""
-    if sys.platform != 'win32':
-        raise NotImplementedError(
-            'CDF library install only supported on Windows')
-    try:
-        import html.parser as HTMLParser
-    except ImportError:
-        import HTMLParser
-    #https://stackoverflow.com/questions/1713038/super-fails-with-error-typeerror-argument-1-must-be-type-not-classobj
-    class LinkParser(HTMLParser.HTMLParser, object):
-        def __init__(self, *args, **kwargs):
-            self.links_found = []
-            super(LinkParser, self).__init__(*args, **kwargs)
-        def handle_starttag(self, tag, attrs):
-            if tag != 'a' or attrs[0][0] != 'href':
-                return
-            self.links_found.append(attrs[0][1])
-    import re
-    import subprocess
-    try:
-        import urllib.request as u
-    except ImportError:
-        import urllib as u
-    import spacepy
-    if spacepy.config.get('user_agent', None):
-        class AppURLopener(u.FancyURLopener):
-            version = spacepy.config['user_agent']
-        u._urlopener = AppURLopener()
-    baseurl = 'https://spdf.gsfc.nasa.gov/pub/software/cdf/dist/'
-    url = u.urlopen(baseurl)
-    listing = url.read()
-    url.close()
-    p = LinkParser()
-    p.feed(listing)
-    cdfdist = [l for l in p.links_found if re.match(r'^cdf3\d_\d(?:_\d)?/$', l)]
-    if not cdfdist:
-        raise RuntimeError(
-            "Couldn't find CDF distribution directory to download")
-    cdfdist.sort(key=lambda x: x.rstrip('/').split('_'))
-    cdfverbase = cdfdist[-1].rstrip('/')
-    instfname = cdfverbase + ('_0' if cdfverbase.count('_') == 1 else '') + \
-                '-setup-{0}.exe'.format(len('%x' % sys.maxsize)*4)
-    insturl = baseurl + cdfverbase + '/windows/' + instfname
-    tmpdir = tempfile.mkdtemp()
-    try:
-        fname, status = u.urlretrieve(insturl, os.path.join(tmpdir, instfname))
-        subprocess.check_call([fname, '/install', '/q1'], shell=False)
-    finally:
-        shutil.rmtree(tmpdir)
-
 _libpath, _library = Library._find_lib()
 if _library is None:
     raise Exception(('Cannot load CDF C library; checked {0}. '
@@ -1339,6 +1228,7 @@ lib = Library(_libpath, _library)
 
 Initalized at module load time so all classes have ready
 access to the CDF library and a common state. E.g:
+    
     >>> from spacepy import pycdf
     >>> pycdf.lib.version
         (3, 3, 0, ' ')
@@ -1402,7 +1292,7 @@ class CDFError(CDFException):
 class CDFWarning(CDFException, UserWarning):
     """Used for a warning in the CDF library."""
 
-    def warn(self, level=4):
+    def warn(self, level=5):
         """
         Issues a warning based on the information stored in my exception
 
@@ -1411,7 +1301,7 @@ class CDFWarning(CDFException, UserWarning):
         Other Parameters
         ================
         level : int
-            optional (default 3), how far up the stack the warning should
+            optional (default 5), how far up the stack the warning should
             be reported. Passed directly to `warnings.warn`.
         """
         warnings.warn(self, self.__class__, level)
@@ -1693,59 +1583,6 @@ class CDF(MutableMapping, spacepy.datamodel.MetaMixin):
         >>> cdffile.new('Var1', data=[5, 6, 7, 8]
         >>> var[...]
         [5, 6, 7, 8]
-
-    .. autosummary::
-
-        ~CDF.attr_num
-        ~CDF.attrs
-        ~CDF.add_attr_to_cache
-        ~CDF.add_to_cache
-        ~CDF.backward
-        ~CDF.checksum
-        ~CDF.clear_attr_from_cache
-        ~CDF.clear_from_cache
-        ~CDF.clone
-        ~CDF.close
-        ~CDF.col_major
-        ~CDF.compress
-        ~CDF.copy
-        ~CDF.from_data
-        ~CDF.new
-        ~CDF.raw_var
-        ~CDF.readonly
-        ~CDF.save
-        ~CDF.var_num
-        ~CDF.version
-
-    .. attribute:: CDF.attrs
-
-       Global attributes for this CDF in a dict-like format.
-       See `gAttrList` for details.
-
-    .. attribute:: CDF.backward
-
-       True if this CDF was created in backward-compatible mode
-       (for opening with CDF library before 3.x)
-
-    .. automethod:: add_to_cache
-    .. automethod:: add_attr_to_cache
-    .. automethod:: attr_num
-    .. automethod:: checksum
-    .. automethod:: clear_from_cache
-    .. automethod:: clear_attr_from_cache
-    .. automethod:: clone
-    .. automethod:: close
-    .. automethod:: col_major
-    .. automethod:: compress
-    .. automethod:: copy
-    .. automethod:: from_data
-    .. automethod:: new
-    .. automethod:: raw_var
-    .. automethod:: readonly
-    .. automethod:: save
-    .. automethod:: var_num
-    .. automethod:: version
-
     """
     backward = False
     """True if this CDF was created in backward-compatible mode."""
@@ -1783,8 +1620,10 @@ class CDF(MutableMapping, spacepy.datamodel.MetaMixin):
         Examples
         ========
         Open a CDF by creating a CDF object, e.g.:
+
             >>> cdffile = pycdf.CDF('cdf_filename.cdf')
-        Be sure to :meth:`pycdf.CDF.close` or :meth:`pycdf.CDF.save`
+
+        Be sure to :meth:`~spacepy.pycdf.CDF.close` or :meth:`~spacepy.pycdf.CDF.save`
         when done.
         """
         if masterpath is not None: #Looks like we want to create
@@ -1824,8 +1663,8 @@ class CDF(MutableMapping, spacepy.datamodel.MetaMixin):
 
         Close CDF file if there is still a valid handle.
         .. note::
-            To avoid data loss, explicitly call :meth:`pycdf.CDF.close` 
-            or :meth:`pycdf.CDF.save`.
+            To avoid data loss, explicitly call :meth:`~spacepy.pycdf.CDF.close` 
+            or :meth:`~spacepy.pycdf.CDF.save`.
         """
         if self._opened:
             self.close()
@@ -2041,7 +1880,7 @@ class CDF(MutableMapping, spacepy.datamodel.MetaMixin):
         if self.encoding not in ('ascii', 'utf-8'):
             warnings.warn(
                 'Opening CDF for write with nonstandard encoding {}'.format(
-                    self.encoding))
+                    self.encoding), stacklevel=2)
 
     @classmethod
     def from_data(cls, filename, sd):
@@ -2064,8 +1903,9 @@ class CDF(MutableMapping, spacepy.datamodel.MetaMixin):
             name of the file to create
         sd : spacepy.datamodel.SpaceData
             data to put in the CDF. This structure cannot be nested,
-            i.e., it must contain only `~spacepy.datamodel.dmarray`
-            and no `~spacepy.datamodel.Spacedata` objects.
+            i.e., it must contain only :class:`~spacepy.datamodel.dmarray`
+            and no :class:`~spacepy.datamodel.SpaceData` objects.
+
         """
         with cls(filename, '') as cdffile:
             for k in sd:
@@ -2245,8 +2085,8 @@ class CDF(MutableMapping, spacepy.datamodel.MetaMixin):
         """
         Closes the CDF file
 
-        Although called on object destruction (:meth:`~CDF.__del__`),
-        to ensure all data are saved, the user should explicitly call
+        Although called on object destruction, to ensure 
+        all data are saved, the user should explicitly call
         :meth:`~CDF.close` or :meth:`~CDF.save`.
 
         Raises
@@ -2328,7 +2168,7 @@ class CDF(MutableMapping, spacepy.datamodel.MetaMixin):
             `~spacepy.datamodel.dmarray`), it will be used to
             populate attributes of the new variable. Similarly the CDF
             type, record variance, etc. will, by default, be taken
-            from `data` if it is a
+            from ``data`` if it is a
             `~spacepy.pycdf.VarCopy`. This can be overridden by
             specifying other keywords.
         type : ctypes.c_long
@@ -2415,7 +2255,6 @@ class CDF(MutableMapping, spacepy.datamodel.MetaMixin):
         This will switch to an eight-byte double in some cases where four bytes
         would be sufficient for IEEE 754 encoding, but where DEC formats would
         require eight.
-
         """
         if hasattr(data, 'compress'):
             try:
@@ -2759,7 +2598,7 @@ class CDFCopy(spacepy.datamodel.SpaceData):
     A dictionary-like copy of all data and attributes in a `CDF`
 
     Data are `VarCopy` objects, keyed by variable name.
-    CDF attributes are in :attr:`attrs`. (I.e.,
+    CDF attributes are in attrs. (I.e.,
     data are accessed much like from a `CDF`).
 
     Do not instantiate this class directly; use :meth:`~CDF.copy`
@@ -2771,16 +2610,17 @@ class CDFCopy(spacepy.datamodel.SpaceData):
     >>> with pycdf.CDF('test.cdf') as cdffile:
     ...     data = cdffile.copy()
 
-    .. attribute:: attrs
-
        Python dictionary containing attributes copied from the CDF.
     """
 
     def __init__(self, cdf):
         """Copies all data and attributes from a CDF
 
-        @param cdf: CDF to take data from
-        @type cdf: `pycdf.CDF`
+        Parameters
+        ==========
+        cdf : :class:`~spacepy.pycdf.CDF`
+            CDF to take data from
+
         """
         super(CDFCopy, self).__init__(((key, var.copy())
                                       for (key, var) in cdf.items()),
@@ -2894,7 +2734,7 @@ class Var(MutableSequence, spacepy.datamodel.MetaMixin):
     variable), case 1 takes priority.
     Otherwise, mismatch between the number of dimensions specified in
     the slice and the number of dimensions in the variable will cause
-    an :exc:`~exceptions.IndexError` to be thrown.
+    an :exc:`IndexError` to be thrown.
 
     This all sounds very complicated but it is essentially attempting
     to do the 'right thing' for a range of slices.
@@ -3084,48 +2924,13 @@ class Var(MutableSequence, spacepy.datamodel.MetaMixin):
         Although this interface only directly supports zVariables, zMode is
         set on opening the CDF so rVars appear as zVars. See p.24 of the
         CDF user's guide; pyCDF uses zMode 2.
-
-
-    .. autosummary::
-
-        ~Var.attrs
-        ~Var.compress
-        ~Var.copy
-        ~Var.dtype
-        ~Var.dv
-        ~Var.insert
-        ~Var.name
-        ~Var.nelems
-        ~Var.pad
-        ~Var.rename
-        ~Var.rv
-        ~Var.shape
-        ~Var.sparse
-        ~Var.type
-    .. attribute:: Var.attrs
-
-       zAttributes for this zVariable in a dict-like format.
-       See `zAttrList` for details.
-    .. automethod:: compress
-    .. automethod:: copy
-    .. autoattribute:: dtype
-    .. automethod:: dv
-    .. automethod:: insert
-    .. automethod:: name
-    .. automethod:: nelems
-    .. automethod:: pad
-    .. automethod:: rename
-    .. automethod:: rv
-    .. autoattribute:: shape
-    .. automethod:: sparse
-    .. automethod:: type
     """
     def __init__(self, cdf_file, var_name, *args):
         """Create or locate a variable
 
         Parameters
         ==========
-        cdf_file : `pycdf.CDF`
+        cdf_file : :class:`~spacepy.pycdf.CDF`
             CDF file containing this variable
         var_name : string
             name of this variable
@@ -3133,7 +2938,7 @@ class Var(MutableSequence, spacepy.datamodel.MetaMixin):
         Other Parameters
         ================
         args
-            additional arguments passed to :meth:`_create`. If none,
+            additional arguments passed to the create method. If none,
             opens an existing variable. If provided, creates a
             new one.
 
@@ -3712,8 +3517,7 @@ class Var(MutableSequence, spacepy.datamodel.MetaMixin):
         Returns
         =======
         out : dtype
-            numpy dtype that will hold value from this variable
-            
+            numpy dtype that will hold value from this variable      
         """
         cdftype = self.type()
         if cdftype == const.CDF_CHAR.value or cdftype == const.CDF_UCHAR.value:
@@ -3914,7 +3718,7 @@ class VarCopy(spacepy.datamodel.dmarray):
     """A list-like copy of the data and attributes in a `Var`
 
     Data are in the list elements. CDF attributes are in a dict,
-    accessed through :attr:`attrs`. (I.e.,
+    accessed through attrs. (I.e.,
     data and attributes are accessed like in a `Var`.)
 
     Do not instantiate this class directly; use :meth:`~Var.copy`
@@ -3926,31 +3730,6 @@ class VarCopy(spacepy.datamodel.dmarray):
     :meth:`~spacepy.pycdf.CDF.new`. Operations that e.g. change the
     dimensionality of the copy may make this (or any) metadata out of
     date; see :meth:`set` to update.
-
-    .. autosummary::
-
-        compress
-        dv
-        nelems
-        pad
-        rv
-        set
-        sparse
-        type
-
-    .. attribute:: attrs
-
-       Python dictionary containing attributes copied from the zVar
-
-    .. automethod:: compress
-    .. automethod:: dv
-    .. automethod:: nelems
-    .. automethod:: pad
-    .. automethod:: rv
-    .. automethod:: set
-    .. automethod:: sparse
-    .. automethod:: type
-
     """
     Allowed_Attributes = spacepy.datamodel.dmarray.Allowed_Attributes \
                          + ['_cdf_meta']
@@ -3980,7 +3759,6 @@ class VarCopy(spacepy.datamodel.dmarray):
         =======
         tuple
             compression type, parameter currently in effect.
-
         """
         if args or kwargs:
             return super(VarCopy, self).compress(*args, **kwargs)
@@ -3997,7 +3775,6 @@ class VarCopy(spacepy.datamodel.dmarray):
         =======
         list of boolean
             True if that dimension has variance, else False
-
         """
         return self._cdf_meta['dv']
 
@@ -4060,7 +3837,7 @@ class VarCopy(spacepy.datamodel.dmarray):
             used to retrieve it (e.g. use ``type`` to set the CDF type, which
             is returned by :meth:`type`).
         value
-            Value to assign to `key`.
+            Value to assign to ``key``.
         """
         if key not in self._cdf_meta:
             raise KeyError('Invalid CDF metadata key {}'.format(key))
@@ -4217,7 +3994,7 @@ class _Hyperslice(object):
         @return: size of each dimension for this slice, excluding degenerate
         @rtype: list of int
         """
-        return [self.counts[i] for i in range(self.dims) if not self.degen[i]]
+        return [self.counts.item(i) for i in range(self.dims) if not self.degen[i]]
 
     def expand(self, data):
         """Expands the record dimension of this slice to hold a set of data
@@ -4697,37 +4474,21 @@ class Attr(MutableSequence):
 
         >>> first_three = attribute[5, 0:3] #will fail
         >>> first_three = attribute[5][0:3] #first three elements of 5th Entry
-
-    .. autosummary::
-
-        ~Attr.append
-        ~Attr.has_entry
-        ~Attr.insert
-        ~Attr.max_idx
-        ~Attr.new
-        ~Attr.number
-        ~Attr.rename
-        ~Attr.type
-
-    .. automethod:: append
-    .. automethod:: has_entry
-    .. automethod:: insert
-    .. automethod:: max_idx
-    .. automethod:: new
-    .. automethod:: number
-    .. automethod:: rename
-    .. automethod:: type
     """
 
     def __init__(self, cdf_file, attr_name, create=False):
         """Initialize this attribute
 
-        @param cdf_file: CDF file containing this attribute
-        @type cdf_file: `pycdf.CDF`
-        @param attr_name: Name of this attribute
-        @type attr_name: str
-        @param create: True to create attribute, False to look up existing.
-        @type create: bool
+        Parameters
+        ==========
+        cdf_file : :class:`~spacepy.pycdf.CDF`
+            CDF file containing this attribute
+        
+        attr_name : str
+            Name of this attribute
+        
+        create : bool
+            True to create attribute, False to look up existing
         """
         self._cdf_file = cdf_file
         self._raw = False
@@ -5435,7 +5196,7 @@ class gAttr(Attr):
         >>> first_three = attribute[5][0:3] #first three elements of 5th Entry
 
     gEntries are *not* necessarily contiguous; a gAttribute may have an
-    entry 0 and entry 2 without an entry 1. :meth:`~Attr.len` will return the
+    entry 0 and entry 2 without an entry 1. spacepy.pycdf.Attr.__len__() will return the
     *number* of gEntries; use :meth:`~Attr.max_idx` to find the highest defined
     gEntry number and :meth:`~Attr.has_entry` to determine if a particular
     gEntry number exists. Iterating over all entries is also supported::
@@ -5488,28 +5249,20 @@ class AttrList(MutableMapping):
         subclasses, `gAttrList` and `zAttrList`.
         Methods listed here are safe to use from the subclasses.
 
-    .. autosummary::
-
-        ~AttrList.clone
-        ~AttrList.copy
-        ~AttrList.new
-        ~AttrList.rename
-    
-    .. automethod:: clone
-    .. automethod:: copy
-    .. automethod:: new
-    .. automethod:: rename
     """
 
     def __init__(self, cdf_file, special_entry=None):
         """Initialize the attribute collection
 
-        @param cdf_file: CDF these attributes are in
-        @type cdf_file: `pycdf.CDF`
-        @param special_entry: callable which returns a "special" entry number,
-        used to limit results for zAttrs to those which match the zVar
-        (i.e. the var number)
-        @type special_entry: callable
+        Parameters
+        ==========
+        cdf_file : :class:`~spacepy.pycdf.CDF`
+            CDF these attributes are in
+        
+        special_entry : callable
+            callable which returns a "special" entry number,
+            used to limit results for zAttrs to those which match the zVar
+
         """
         self._cdf_file = cdf_file
         self.special_entry = special_entry
@@ -5850,7 +5603,6 @@ class zAttrList(AttrList):
     See Also
     ========
     AttrList
-
     """
     AttrType = zAttr
     attr_name = 'zAttribute'
@@ -5859,8 +5611,11 @@ class zAttrList(AttrList):
     def __init__(self, zvar):
         """Initialize the attribute collection
 
-        @param zvar: zVariable these attributes are in
-        @param zvar: `pycdf.Var`
+        Parameters
+        ==========
+        zvar : :class:`~spacepy.pycdf.Var`
+            zVariable these attributes are in
+
         """
         super(zAttrList, self).__init__(zvar.cdf_file, zvar._num)
         self._zvar = zvar
@@ -5953,14 +5708,22 @@ class zAttrList(AttrList):
     def type(self, name, new_type=None):
         """Find or change the CDF type of a zEntry in this zVar
 
-        @param name: name of the zAttr to check or change
-        @type name: str
-        @param new_type: type to change it to, see `pycdf.const`
-        @type new_type: ctypes.c_long
-        @return: CDF variable type, see `pycdf.const`
-        @rtype: int
-        @note: If changing types, old and new must be equivalent, see CDF
-               User's Guide section 2.5.5 pg. 57
+        Parameters
+        ----------
+        name : string
+            name of the zAttr to check or change
+
+        new_type : ctypes.c_long
+            type to change it to, see   ``pycdf.const``
+
+        Returns
+        -------
+        CDF variable type : int
+
+        Notes
+        -----
+        If changing types, old and new must be equivalent, see CDF
+        User's guide section 2.5.5 pg. 57
         """
         attrib = super(zAttrList, self).__getitem__(name)
         zvar_num = self._zvar._num()

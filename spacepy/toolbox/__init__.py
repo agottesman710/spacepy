@@ -39,14 +39,8 @@ import pickle
 
 import numpy as np
 
-try:
-    from spacepy import help
-except ImportError:
-    pass
-except:
-    pass
-
 import spacepy
+from spacepy import help
 from spacepy import time as spt
 
 #Try to pull in the C version. Assumption is that if you import this module,
@@ -81,8 +75,8 @@ def unique_columns(inval, axis=0):
     inval :  array-like
         array to find unique columns or rows of
 
-    Optional Parameters
-    -------------------
+    Other Parameters
+    ----------------
     axis : int
         The axis to find unique over, default: 0
 
@@ -323,9 +317,9 @@ def tCommon(ts1, ts2, mask_only=True):
 
     tn1, tn2 = date2num(ts1), date2num(ts2)
 
-    el1in2 = np.in1d(tn1, tn2, assume_unique=True)  #makes mask of present/absent
-    el1in2 = np.in1d(tn1, tn2, assume_unique=True)  #makes mask of present/absent
-    el2in1 = np.in1d(tn2, tn1, assume_unique=True)
+    el1in2 = np.isin(tn1, tn2, assume_unique=True)  #makes mask of present/absent
+    el1in2 = np.isin(tn1, tn2, assume_unique=True)  #makes mask of present/absent
+    el2in1 = np.isin(tn2, tn1, assume_unique=True)
 
     if mask_only:
         return el1in2, el2in1
@@ -384,29 +378,27 @@ def loadpickle(fln):
     >>> d = loadpickle('test.pbin')
     """
     if not os.path.exists(fln) and os.path.exists(fln + '.gz'):
-        gzip = True
+        # It's a gzip
         fln += '.gz'
     else:
         try:
             with open(fln, 'rb') as fh:
                 return pickle.load(fh, encoding='latin1')
         except pickle.UnpicklingError: #maybe it's a gzip?
-            gzip = True
-        else:
-            gzip = False
-    if gzip:
-        try:
-            import zlib
-            with open(fln, 'rb') as fh:
-                stream = zlib.decompress(fh.read(), 16 + zlib.MAX_WBITS) 
-                return pickle.loads(stream, encoding='latin1')
-        except MemoryError:
-            import gzip
-            with open(fln) as fh:
-                gzh = gzip.GzipFile(fileobj=fh)
-                contents = pickle.load(gzh, encoding='latin1')
-                gzh.close()
-            return contents
+            pass
+    # Try to resolve as a gzip
+    try:
+        import zlib
+        with open(fln, 'rb') as fh:
+            stream = zlib.decompress(fh.read(), 16 + zlib.MAX_WBITS)
+            return pickle.loads(stream, encoding='latin1')
+    except MemoryError:
+        import gzip
+        with open(fln) as fh:
+            gzh = gzip.GzipFile(fileobj=fh)
+            contents = pickle.load(gzh, encoding='latin1')
+            gzh.close()
+        return contents
 
 
 # -----------------------------------------------
@@ -506,8 +498,10 @@ def assemble(fln_pattern, outfln, sortkey='ticks', verbose=True):
         else:
             TAIcount = len(d[fln][ list(d[fln].keys())[0] ])
         for key in d[fln]:
-            #print fln, key
-            dim = np.array(np.shape(d[fln][key]))
+            if isinstance(dcomb[key], spt.Ticktock):
+                dim = np.array(d[fln][key].data.shape)
+            else:
+                dim = np.array(np.shape(d[fln][key]))
             ax = np.where(dim==TAIcount)[0]
             if len(ax) == 1: # then match with TAI length is given (jump over otherwise like for 'parameters')
                 if isinstance(dcomb[key], spt.Ticktock):
@@ -524,13 +518,13 @@ def assemble(fln_pattern, outfln, sortkey='ticks', verbose=True):
             idx = np.argsort(dcomb[sortkey])
         TAIcount = len(dcomb[sortkey])
         for key in dcomb: # iterates over keys by default
-            dim = np.array(np.shape(dcomb[key]))
+            if isinstance(dcomb[key], spt.Ticktock):
+                dim = np.array(dcomb[key].data.shape)
+            else:
+                dim = np.array(np.shape(dcomb[key]))
             ax = np.where(dim==TAIcount)[0]
             if len(ax) == 1: # then match with length of TAI
                 dcomb[key] = dcomb[key][idx] # resort
-    else:
-        # do nothing
-        pass
 
     if verbose: print('\n writing: ', outfln)
     savepickle(outfln, dcomb)
@@ -1533,14 +1527,14 @@ def windowMean(data, time=[], winsize=0, overlap=0, st_time=None, op=np.mean):
     else:
         if len(data) != len(time):
             raise ValueError('windowmean error: data and time must have same length')
-        #First check if datetime objects
-        try:
-            assert type(winsize) == datetime.timedelta
-            assert type(overlap) == datetime.timedelta
-        except AssertionError:
-            raise TypeError('windowmean error: winsize/overlap must be timedeltas if a time array is supplied.')
         pts = False #force time-based averaging
-        if (type(time[0]) != datetime.datetime):
+        #First check if datetime objects
+        if isinstance(time[0], datetime.datetime):
+            if not (isinstance(winsize, datetime.timedelta)
+               and isinstance(overlap, datetime.timedelta)):
+                raise TypeError('windowmean error: winsize/overlap must be'
+                                ' timedeltas if a time array is datetime.')
+        else:
             startpt = time[0]
 
     #now actually do windowing mean
@@ -1548,21 +1542,18 @@ def windowMean(data, time=[], winsize=0, overlap=0, st_time=None, op=np.mean):
     data = np.array(data)
     if pts:
         #loop for fixed number of points in window
-        try:
-            inttypes = (int, long)
-        except NameError:
-            inttypes = (int,)
-        if not isinstance(winsize, inttypes):
+        if not isinstance(winsize, int):
             winsize = int(round(winsize))
             warnings.warn('windowmean: non-integer windowsize, rounding to %d' \
-            % winsize)
+                          % winsize, stacklevel=2)
         if winsize < 1:
             winsize = 1
-            warnings.warn('windowmean: window length < 1, defaulting to 1')
+            warnings.warn('windowmean: window length < 1, defaulting to 1',
+                          stacklevel=2)
         if overlap >= winsize:
             overlap = winsize - 1
             warnings.warn('''windowmean: overlap longer than window, truncated to
-            %d''' % overlap)
+            %d''' % overlap, stacklevel=2)
         lastpt = winsize-1 #set last point to end of window size
         while lastpt < len(data):
             datwin = np.ma.masked_where(np.isnan(data[startpt:startpt+winsize]), \
@@ -1577,11 +1568,11 @@ def windowMean(data, time=[], winsize=0, overlap=0, st_time=None, op=np.mean):
     else:
         #loop with time-based window
         lastpt = time[0] + winsize
-        delta = datetime.timedelta(microseconds=1) #TODO: replace this with an explicit check for times on the boundary?
-        if st_time:
-            startpt = st_time
+        if isinstance(time[0], datetime.datetime):
+            delta = datetime.timedelta(microseconds=1) #TODO: replace this with an explicit check for times on the boundary?
         else:
-            startpt = time[0]
+            delta = (max(time) - min(time)) / 1.e6  # Definite fudge...
+        startpt = time[0] if st_time is None else st_time
         if overlap >= winsize:
             raise ValueError('Overlap requested greater than size of window')
         while startpt < time[-1]:
@@ -1591,7 +1582,7 @@ def windowMean(data, time=[], winsize=0, overlap=0, st_time=None, op=np.mean):
                 getmean = op(getdata.compressed()) #find mean excluding NaNs
             else:
                 getmean = np.nan
-            gettime = startpt + winsize//2 #new timestamp -floordiv req'd with future division
+            gettime = startpt + winsize/2
             startpt = startpt + winsize - overlap #advance window start
             lastpt = startpt + winsize
             outdata.append(getmean) #construct output arrays
@@ -1779,7 +1770,7 @@ def bootHisto(data, inter=90., n=1000, seed=None,
     See Also
     --------
     binHisto
-    plot.utils.set_target
+    spacepy.plot.utils.set_target
     numpy.histogram
     matplotlib.pyplot.hist
     """
@@ -1920,7 +1911,7 @@ def geomspace(start, ratio=None, stop=False, num=50):
     ratio : float (optional)
         The ratio between subsequent points
     stop : float (optional)
-        End value, if this is selected `num` is overridden
+        End value, if this is selected ``num`` is overridden
     num : int (optional)
         Number of samples to generate. Default is 50.
 
@@ -2108,7 +2099,8 @@ def pmm(*args):
         except TypeError:
             ind = np.arange(len(a)).astype(int)
             import warnings
-            warnings.warn('pmm: Unable to exclude non-finite values, results may be incorrect', RuntimeWarning)
+            warnings.warn('pmm: Unable to exclude non-finite values, results may be incorrect',
+                          RuntimeWarning, stacklevel=2)
         try:
             ans.append([np.min(a[ind]), np.max(a[ind])])
         except TypeError:
@@ -2189,10 +2181,7 @@ def query_yes_no(question, default="yes"):
         raise ValueError("invalid default answer: {}".format(default))
     while 1:
         sys.stdout.write(question + prompt)
-        if sys.version_info[0]==2:
-            choice = raw_input().lower()
-        elif sys.version_info[0]>2:
-            choice = input().lower()
+        choice = input().lower()
         if default is not None and choice == '':
             return default
         elif choice in valid:
@@ -2505,10 +2494,7 @@ def bin_edges_to_center(edges):
     [0.5, 1.5, 2.5, 3.5]
     """
     df = np.diff(edges)
-    if isinstance(df[0], datetime.timedelta) and sys.version_info[0:2]<=(3,2):
-        return edges[:-1] + df//2
-    else:
-        return edges[:-1] + df/2
+    return edges[:-1] + df/2
 
 def thread_job(job_size, thread_count, target, *args, **kwargs):
     """
@@ -2875,6 +2861,10 @@ def timeout_check_call(timeout, *args, **kwargs):
     """
     Call a subprocess with a timeout.
 
+    .. deprecated:: 0.7.0
+        Use ``timeout`` argument of :func:`subprocess.check_call`, added
+        in Python 3.3.
+
     Like :func:`subprocess.check_call`, but will terminate the process and
     raise :exc:`TimeoutError` if it runs for too long.
 
@@ -2908,6 +2898,9 @@ def timeout_check_call(timeout, *args, **kwargs):
     out : int
         0 on successful completion
     """
+    warnings.warn("timeout_check_call was deprecated in 0.7.0"
+                  " and will be removed.",
+                  DeprecationWarning, stacklevel=2)
     resolution = 0.1
     pro = subprocess.Popen(*args, **kwargs)
     starttime = time.time()

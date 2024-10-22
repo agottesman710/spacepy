@@ -1,14 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
-import sys
-from numpy import shape, dot, eye, set_printoptions, diag, sum
-import numpy as np
-from numpy.linalg import svd
-import pdb
-
-__contact__ = 'Josef Koller, jkoller@lanl.gov'
-
 """
 Data assimilation functions used for several projects
 
@@ -19,33 +10,20 @@ Contact: jkoller@lanl.gov
 Copyright 2010 Los Alamos National Security, LLC.
 """
 
+import sys
+from numpy import shape, dot, eye, set_printoptions, diag, sum
+import numpy as np
+from numpy.linalg import svd
+import pdb
+
+__contact__ = 'Josef Koller, jkoller@lanl.gov'
+
 # -----------------------------------------------
 # Data Assimilation class: enKF
 # -----------------------------------------------
 class ensemble(object):
     """
     Ensemble-based data assimilation subroutines for the Radiation Belt Model
-    
-    .. currentmodule:: spacepy.data_assimilation
-    .. autosummary::
-        ~ensemble.EnKF
-        ~ensemble.EnKF_oneobs
-        ~ensemble.add_model_error
-        ~ensemble.add_model_error_obs
-        ~ensemble.getHA
-        ~ensemble.getHAprime
-        ~ensemble.getHPH
-        ~ensemble.getInnovation
-        ~ensemble.getperturb
-    .. automethod:: EnKF
-    .. automethod:: EnKF_oneobs
-    .. automethod:: add_model_error
-    .. automethod:: add_model_error_obs
-    .. automethod:: getHA
-    .. automethod:: getHAprime
-    .. automethod:: getHPH
-    .. automethod:: getInnovation
-    .. automethod:: getperturb
     """
 
     def __init__(self, ensembles = 50):

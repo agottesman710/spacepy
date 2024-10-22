@@ -17,37 +17,6 @@ Detailed HTML documentation is available online by typing:
 Most functionality is in spacepy's submodules. Each module has specific
 help available:
 
-.. rubric:: Submodules
-
-.. autosummary::
-    :template: clean_module.rst
-
-    ~spacepy.coordinates
-    ~spacepy.data_assimilation
-    ~spacepy.datamodel
-    ~spacepy.empiricals
-    ~spacepy.irbempy
-    ~spacepy.LANLstar
-    ~spacepy.omni
-    ~spacepy.poppy
-    ~spacepy.pybats
-    ~spacepy.pycdf
-    ~spacepy.radbelt
-    ~spacepy.seapy
-    ~spacepy.time
-    ~spacepy.toolbox
-    ~spacepy.ae9ap9
-
-.. rubric:: Functions
-
-.. autosummary::
-
-    deprecated
-    help
-
-.. autofunction:: deprecated
-.. autofunction:: help
-
 Copyright 2010-2016 Los Alamos National Security, LLC.
 """
 
@@ -64,31 +33,49 @@ import warnings
 import webbrowser
 
 
-def help():
+def help(keyword=None):
     """Launches web browser with SpacePy documentation
 
+    Parameters
+    ----------
+    keyword : str, optional
+
+          .. versionadded:: 0.7.0
+
+      Search for this keyword. If not specified, opens the front page
+      of the documentation.
+
+    Notes
+    -----
     Online help is always for the latest release of SpacePy.
+
+    Examples
+    --------
+    >>> import spacepy
+    >>> spacepy.help("coordinates")
     """
     print('Opening docs for latest release. Installed SpacePy is {}.'.format(
         __version__))
-    webbrowser.open('https://spacepy.github.io/')
+    url = 'https://spacepy.github.io/' if keyword is None\
+        else f'https://spacepy.github.io/search.html?q={keyword}'
+    webbrowser.open(url)
 
 
 # put modules here that you want to be accessible through 'from spacepy import *'
 __all__ = ["seapy", "toolbox", "poppy", "coordinates", "time", "omni", 
-           "irbempy", "empiricals", "radbelt", "data_assimilation", "pycdf",
+           "irbempy", "empiricals", "pycdf",
            "datamanager", "datamodel", "ae9ap9"]
 
-# Make sure the mingw runtime libs from our binary wheel are findable
-minglibs = os.path.join(os.path.dirname(__file__), 'mingw')
-if sys.platform == 'win32' and os.path.isdir(minglibs):
+# Make sure the Fortran and other runtime libs from binary wheel are findable
+libs = os.path.join(os.path.dirname(__file__), 'libs')
+if sys.platform == 'win32' and os.path.isdir(libs):
     if os.environ.get('PATH'):
-        if not minglibs in os.environ['PATH']:
-            os.environ['PATH'] += (';' + minglibs)
+        if not libs in os.environ['PATH']:
+            os.environ['PATH'] += (';' + libs)
     else:  # empty or nonexistent PATH
-        os.environ['PATH'] = minglibs
+        os.environ['PATH'] = libs
     try:
-        os.add_dll_directory(minglibs)
+        os.add_dll_directory(libs)
     except AttributeError:  # Python 3.8+ only
         pass
 
@@ -97,7 +84,7 @@ def _deprecator(version, message, docstring, func):
     #this is the actual, deprecated function
     @functools.wraps(func)
     def _deprecated(*args, **kwargs):
-        warnings.warn(message, DeprecationWarning)
+        warnings.warn(message, DeprecationWarning, stacklevel=2)
         return func(*args, **kwargs)
     if func.__doc__ is None:
         doclines = []
@@ -222,12 +209,35 @@ produce derivative works, such modified software should be clearly marked, so
 as not to confuse it with the version available from LANL. Full text of the 
 Python Software Foundation License can be found in the LICENSE.md file in the
 main development branch of the repository (https://github.com/spacepy/spacepy).
+
+CDF library support is provided by an unmodified library subject to the following license:
+Common Data Format (CDF)
+Space Physics Data Facility
+NASA/Goddard Space Flight Center
+
+This software may be copied or redistributed as long as it is not sold
+for profit, but it can be incorporated into any other substantive
+product with or without modifications for profit or non-profit.  If the
+software is modified, it must include the following notices:
+
+  - The software is not the original (for protection of the original
+    author's reputations from any problems introduced by others)
+
+  - Change history (e.g. date, functionality, etc.)
+
+This copyright notice must be reproduced on each copy made. This software is
+provided as is without any express or implied warranties whatsoever.
 """
 
 if sys.platform == 'win32':
     __license__ += \
         """
 Fortran library support provided by MinGW. The MinGW base runtime package has been placed in the public domain, and is not governed by copyright.
+"""
+else:
+    __license__ += \
+        """
+Fortran library support in binary wheels is distributed under the GCC Runtime Library exception.
 """
 
 __citation__ = """When publishing research which used SpacePy, please provide appropriate
@@ -256,9 +266,8 @@ def _write_defaults(rcfile, defaults, section='spacepy'):
     """Write configuration defaults out to a file if they aren't there"""
     f = open(rcfile, 'r+t') #Avoid race condition, open for read and write
     try:
-        startpos = f.tell()
         rclines = f.readlines()
-        writeme = [k for k in defaults.keys()]
+        writeme = list(defaults)
         #Places where sections start
         secidx = [i for i in range(len(rclines))
                   if re.match(r"^\[[^\[\]]*\]\n$", rclines[i])]
@@ -274,7 +283,6 @@ def _write_defaults(rcfile, defaults, section='spacepy'):
             else:
                 nextsec = None
             #Read only this section for lines matching default values
-            present = []
             for l in rclines[thissec:nextsec]:
                 #For each key, does the line match, commented or not?
                 for k in writeme:
@@ -282,23 +290,15 @@ def _write_defaults(rcfile, defaults, section='spacepy'):
                                 l):
                         writeme.remove(k)
                         break
-        f.seek(startpos) #Back to start of file
-        #Scan to just after section header. Text mode, can only seek() to tell()
-        if thissec != -1:
-            while f.readline() != '[{section}]\n'.format(section=section):
-                pass
-        if sys.platform == 'win32':
-            #Tickle the file for read/write switch
-            #https://stackoverflow.com/questions/11176724/python-file-operations
-            f.seek(0, 2)
-        #Write default values for anything not read
-        for k in sorted(writeme):
-            f.write(("#SpacePy {ver} default {key}: {value}\n"
-                     "#{key}: {value}\n").format(
-                         key=k, value=defaults[k], ver=__version__))
-        #And write all the remaining lines from the section header to end
-        if writeme:
-            f.writelines(rclines[thissec+1:])
+        #This is what we'll actually write to the file
+        writeme_verb = [f"#SpacePy {__version__} default {k}: {defaults[k]}\n"
+                        f"#{k}: {defaults[k]}\n"
+                        for k in sorted(writeme)]
+        #Add writeme to end of this section
+        rclines[nextsec:nextsec] = writeme_verb
+        #Write the new contents
+        f.seek(0)
+        f.writelines(rclines)
     finally:
         f.close()
 
@@ -307,8 +307,7 @@ def _write_defaults(rcfile, defaults, section='spacepy'):
 def _read_config(rcfile):
     """Read configuration information from a file"""
     global config
-    defaults = {'enable_deprecation_warning': str(True),
-                'keepalive': str(True),
+    defaults = {'keepalive': str(True),
                 'ncpus': str(multiprocessing.cpu_count()),
                 'qindenton_url': 'http://virbo.org/ftp/QinDenton/hour/merged/latest/WGhour-latest.d.zip',
                 'qd_daily_url': 'https://rbsp-ect.newmexicoconsortium.org/data_pub/QinDenton/',
@@ -320,8 +319,7 @@ def _read_config(rcfile):
                 }
     #Functions to cast a config value; if not specified, value is a string
     str2bool = lambda x: x.lower() in ('1', 'yes', 'true', 'on')
-    caster = {'enable_deprecation_warning': str2bool,
-              'keepalive': str2bool,
+    caster = {'keepalive': str2bool,
               'ncpus': int,
               'support_notice': str2bool,
               'enable_old_data_warning': str2bool,
@@ -336,8 +334,8 @@ def _read_config(rcfile):
             config = dict(cp.items('spacepy'))
         except configparser.NoSectionError:
             successful = []
-            config = {}
     if not successful:  # Old or bad file structure, wipe it out
+        config = {}
         cp = configparser.ConfigParser()
         cp.add_section('spacepy')
         with open(rcfile, 'w') as cf:
@@ -419,7 +417,3 @@ _read_config(rcfile)
 if __version__ == 'UNRELEASED' and config['support_notice']:
     print('This unreleased version of SpacePy is not supported '
           'by the SpacePy team.')
-# Set up a filter to always warn on deprecation
-if config['enable_deprecation_warning']:
-    warnings.filterwarnings('default', '', DeprecationWarning,
-                            '^spacepy', 0, False)

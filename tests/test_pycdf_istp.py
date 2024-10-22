@@ -471,6 +471,7 @@ class VariablesTests(ISTPTestsBase):
     def testValidScale(self):
         """Check scale min and max."""
         v = self.cdf.new('var1', recVary=False, data=[1, 2, 3])
+        tt2000 = self.cdf.new('var2', recVary=False, type=spacepy.pycdf.const.CDF_TIME_TT2000)
         v.attrs['SCALEMIN'] = 1
         v.attrs['SCALEMAX'] = 3
         self.assertEqual(
@@ -521,6 +522,14 @@ class VariablesTests(ISTPTestsBase):
              'SCALEMAX type CDF_INT2 does not match variable type CDF_BYTE.',
              'SCALEMIN (200) outside valid data range (-128,127).',
              'SCALEMIN type CDF_INT2 does not match variable type CDF_BYTE.'
+             ],
+             errs)
+        tt2000.attrs.new('SCALEMIN', 200.01, type=spacepy.pycdf.const.CDF_DOUBLE)
+        errs = spacepy.pycdf.istp.VariableChecks.validscale(tt2000)
+        errs.sort()
+        self.assertEqual(
+            ['SCALEMIN type CDF_DOUBLE does not match variable type CDF_TIME_TT2000.',
+             'SCALEMIN type CDF_DOUBLE not comparable to variable type CDF_TIME_TT2000.',
              ],
              errs)
         
@@ -632,6 +641,20 @@ class VariablesTestsNew(ISTPTestsBase):
             type=spacepy.pycdf.const.CDF_EPOCH16)
         errs = spacepy.pycdf.istp.VariableChecks.fillval(v)
         self.assertEqual(0, len(errs), '\n'.join(errs))
+    
+    def testFillvalEpoch16NoDefaultFill(self):
+        """Test for fillval throwing error for incorrect default fill"""
+        v = self.cdf.new('Epoch', type=spacepy.pycdf.const.CDF_EPOCH16)
+        v.attrs.new(
+            'FILLVAL', (1.0, 2.0),
+            type=spacepy.pycdf.const.CDF_EPOCH16)
+        errs = spacepy.pycdf.istp.VariableChecks.fillval(v)
+        self.assertRegex(
+            errs[0],
+            'FILLVAL \\[\\s?1.\\s+2.\\] \\(9999-12-13 23:59:59.999999\\),'
+            ' should be \\(-1e\\+31, -1e\\+31\\)'
+            ' \\(9999-12-31 23:59:59.999999\\) for variable type CDF_EPOCH16.')
+        self.assertEqual(1, len(errs), '\n'.join(errs))
 
     def testFillvalTT2000(self):
         """Test for fillval being okay with TT2000"""

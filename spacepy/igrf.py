@@ -2,15 +2,6 @@
 
 This module is intended primarily to support :mod:`~spacepy.coordinates`
 rather than for direct end use, and the interface is subject to change.
-
-Classes
--------
-.. autosummary::
-    :template: clean_class.rst
-    :toctree: autosummary
-
-    IGRFCoefficients
-    IGRF
 """
 
 
@@ -104,31 +95,6 @@ class IGRF():
     -----
 
     .. versionadded:: 0.3.0
-
-    .. rubric:: Methods
-
-    .. autosummary::
-
-        ~IGRF.calcDipoleAxis
-        ~IGRF.initialize
-
-    .. rubric:: Data
-
-    .. autosummary::
-
-        dipole
-        moment
-
-    .. automethod:: calcDipoleAxis
-    .. automethod:: initialize
-
-    .. attribute:: dipole
-
-        Characteristics of dipole (`dict`).
-
-    .. attribute:: moment
-
-        Dipole moments (`dict`).
     """
     dipole = {}
     """Characteristics of dipole (`dict`)."""
@@ -164,7 +130,7 @@ class IGRF():
         if time < igrfcoeffs.datelow or time > igrfcoeffs.datehigh:
             if limits.lower() == 'warn':
                 errmsg += '\nProceeding using effective date {0}'.format(igrfcoeffs.datehigh)
-                warnings.warn(errmsg)
+                warnings.warn(errmsg, stacklevel=2)
                 self.time = igrfcoeffs.datehigh
             else:
                 errmsg += '''\nUse "limits='warn'" to force out-of-range times '''
@@ -186,7 +152,8 @@ class IGRF():
         if self.__status['time_set']:
             return
         if not self.__status['init']:
-            warnings.warn('IGRF: Initialize for a time before invoking this method.')
+            warnings.warn('IGRF: Initialize for a time before invoking this method.',
+                          stacklevel=2)
             return
 
         # Find the indices for the epochs surrounding input time

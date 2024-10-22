@@ -17,6 +17,8 @@ import warnings
 from functools import partial
 import numpy as np
 import scipy.integrate as integ
+if not hasattr(integ, "simpson"):  # scipy<1.7.0
+    integ.simpson = integ.simps 
 
 from spacepy import help
 import spacepy.datamodel as dm
@@ -127,7 +129,8 @@ def getPlasmaPause(ticks, model='M2002', LT='all', omnivals=None):
 
     if model == 'CA1992':
         if LT != 'all':
-            warnings.warn('No LT dependence currently supported for CA1992 model', RuntimeWarning)
+            warnings.warn('No LT dependence currently supported for CA1992 model',
+                          RuntimeWarning, stacklevel=2)
     if model not in model_list:
         raise ValueError("Please specify a valid model:\n{0}".format(' or '.join(model_list)))
 
@@ -670,7 +673,7 @@ def omniFromDirectionalFlux(fluxarr, alphas, norm=True):
        fac = 2*np.pi
        denomina = 1
     alphrad = np.deg2rad(alphas)
-    numera = integ.simps(fluxarr*np.sin(alphrad), alphrad)
+    numera = integ.simpson(y=fluxarr*np.sin(alphrad), x=alphrad)
     omniflux = fac*numera/denomina
     return omniflux
 

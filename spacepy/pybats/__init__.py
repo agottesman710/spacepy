@@ -1,112 +1,13 @@
 # -*- coding: utf-8 -*-
 '''
-PyBats!  An open source Python-based interface for reading, manipulating,
-and visualizing BATS-R-US and SWMF output.
+Module for reading, manipulating, and visualizing BATS-R-US and SWMF output.
+
 For more information on the SWMF, please visit the
 `Center for Space Environment Modeling <http://csem.engin.umich.edu>`_.
 
-Introduction
-------------
-
-At its most fundamental level, PyBats provides access to output files written
-by the Space Weather Modeling Framework and the codes contained within.
-The key task performed by PyBats is loading simulation data into a Spacepy
-data model object so that the user can move on to the important tasks of
-analyzing and visualizing the values.  The secondary goal of PyBats is to make
-common tasks performed with these data as easy as possible.  The result is that
-most SWMF output can be opened and visualized using only a few lines of code.
-Many complicated tasks, such as field line integration, is included as well.
-
-Organization
-------------
-
-Many output files in the SWMF share a common format.  Objects to handle broad
-formats like these are found in the base module.  The base module has classes
-to handle SWMF *input* files, as well.
-
-The rest of the classes are organized by code, i.e. classes and functions
-specifically relevant to BATS-R-US can be found in
-:mod:`spacepy.pybats.bats`.  Whenever a certain code included in the SWMF
-requires a independent class or a subclass from the PyBats base module, it
-will receive its own submodule.
-
-Conventions and Prefixes
-------------------------
-
-Nearly every class in PyBats inherits from :class:`spacepy.datamodel.SpaceData`
-so it is important for users to understand how to employ and explore SpaceData
-objects.  There are a few exceptions, so always pay close attention to the
-docstrings and examples.  Legacy code that does not adhere to this pattern is
-slowly being brought up-to-date with each release.
-
-Visualization methods have two prefixes: *plot_* and *add_*.  Whenever a method
-begins with *plot_*, a quick-look product will be created that is not highly-
-configurable.  These methods are meant to yeild either simple
-diagnostic plots or static, often-used products.  There are few methods that
-use this prefix.  The prefix *add_* is always followed by *plot_type*; it
-indicates a plotting method that is highly configurable and meant to be
-combined with other *add_*-like methods and matplotlib commands.
-
-Common calculations, such as calculating Alfven wave speeds of MHD results,
-are strewn about PyBats' classes.  They are always given the method prefix
-*calc_*, i.e. *calc_alfven*.  Methods called *calc_all* will search for all
-class methods with the *calc_* prefix and call them.
+For additional documentation :doc:`../pybats`
 
 Copyright ©2010 Los Alamos National Security, LLC.
-
-
-Submodules
-----------
-
-There are submodules for most models included within the SWMF.  The classes
-and methods contained within are code-specific, yielding power and
-convenience at the cost of flexibility.  A few of the submodules are helper
-modules- they are not code specific, but rather provide functionality not
-related to an SWMF-included code.
-
-.. autosummary::
-   :template: clean_module.rst
-   :toctree: autosummary
-
-   bats
-   dgcpm
-   dipole
-   gitm
-   kyoto
-   pwom
-   ram
-   rim
-   trace2d
-
-Top-Level Classes & Functions
------------------------------
-
-Top-level PyBats classes handle common-format input and output from the SWMF
-and are very flexible.  However, they do little beyond open files for the user.
-
-There are several functions found in the top-level module.  These are mostly
-convenience functions for customizing plots.
-
-.. rubric:: Classes
-.. autosummary::
-   :template: clean_class.rst
-   :toctree: autosummary
-
-   IdlFile
-   ImfInput
-   LogFile
-   NgdcIndex
-   PbData
-   SatOrbit
-
-.. rubric:: Functions
-.. autosummary::
-   :template: clean_function.rst
-   :toctree: autosummary
-
-   add_body
-   add_planet
-   parse_tecvars
 
 '''
 
@@ -123,8 +24,8 @@ import numpy as np
 # Pybats-related decorators:
 def calc_wrapper(meth):
     '''
-    This is a decorator for `self.calc_*` object methods.  It establishes
-    `self._calcs`, a list of calcuation functions that have been called, and
+    This is a decorator for ``self.calc_*`` object methods.  It establishes
+    ``self._calcs``, a list of calcuation functions that have been called, and
     adds the called function to that list to keep track of which calculations
     have already been performed for the object.  If a calculation has already
     been performed, it is skipped in order to reduce effort.
@@ -152,14 +53,14 @@ def calc_wrapper(meth):
 
 # Some common, global functions.
 def parse_filename_time(filename):
-    '''
+    """
     Given an SWMF file whose name follows the usual standards (see below),
     attempt to parse the file name to extract information about the iteration,
     runtime and date/time at which the file was written.  All three are
     returned to the caller in that order.  If any cannot be found in the
     file name, "None" is returned in its place.
 
-    For *.outs files, ranges of times and iterations can be given in the
+    For '*'.outs files, ranges of times and iterations can be given in the
     file names.  If this is the case, a list of values will be returned
     for that entry (see third example below).
 
@@ -171,10 +72,6 @@ def parse_filename_time(filename):
     ==========
     filename : string
         An SWMF output file name.
-
-    Other Parameters
-    ================
-    None
 
     Returns
     =======
@@ -197,7 +94,7 @@ def parse_filename_time(filename):
 
     >>> parse_filename_time('z=0_mhd_2_e20140410-000000-000_20140410-000300-000.outs')
     (None, None, [datetime.datetime(2014, 4, 10, 0, 0), datetime.datetime(2014, 4, 10, 0, 3)])
-    '''
+    """
 
     from dateutil.parser import parse
     import re
@@ -690,7 +587,7 @@ def _scan_bin_header(f, endchar, inttype, floattype):
     f : Binary file object
         The file from which to read the array of values.
     endchar : str
-        Endian character:'<' or '>'
+        Endian character-'<' or '>'
     inttype : Numpy integer type
         Set the precision for the integers that store the size of each
         entry with the correct endianess.
@@ -769,10 +666,6 @@ def _probe_idlfile(filename):
     ----------
     filename : str
         String path of file to probe.
-
-    Other Parameters
-    ----------------
-    None
 
     Returns
     -------
@@ -1108,89 +1001,8 @@ class PbData(SpaceData):
 class IdlFile(PbData):
 
     '''
-    Introduction
-    ------------
-
     An object class that reads/parses an IDL-formatted output file from the
     SWMF and places it into a :class:`spacepy.pybats.PbData` object.
-
-    Usage:
-    >>>data = spacepy.pybats.IdlFile('binary_file.out')
-
-    See :class:`spacepy.pybats.PbData` for information on how to explore
-    data contained within the returned object.
-
-    This class serves as a parent class to SWMF component-specific derivative
-    classes that do more preprocessing of the data before returning the
-    object.  Hence, using this class to read binary files is typically not
-    the most efficient way to proceed.  Look for a PyBats sub module that suits
-    your specific needs, or use this base object to write your own.
-
-    Multi-Frame Files
-    -----------------
-
-    Typically, Idl-formatted data has a single *frame*, or a single snapshot
-    worth of data (a `*.out` file).  However, it is possible to (externally)
-    combine many of these files together such that a time series of data frames
-    are contained within a single file (`*.outs` files). This class can read
-    these files, but only one data frame can be made available at a time.  This
-    prevents very large memory requirements.
-
-    These files are opened and handled similarly to regular IDL-formatted
-    files  with some important differences.  Upon instantiation, the user
-    may select which data frame to open with the *iframe* kwarg.  The default
-    action is to open the first frame.  The user may learn more about the
-    number of frames within the file and their associated epoch/iteration
-    information by examining the top level *attrs* (see below.)
-    The user may switch to any arbitrary frame using the `switch_frame(iframe)`
-    object method.  This will load the relevant data from disk into the
-    object, overwriting the previous contents.
-
-    If the user has created any new variables using the data from a certain
-    data frame, those new values will not be updated automatically.  An
-    exception is for any *self.calc_* type methods that are set to update
-    automatically.
-
-    Top Level Attributes
-    --------------------
-    Critical file information can be found via the top-level object attributes
-    (e.g., accessing the dictionary `self.attrs`).  All IdlFile objects and
-    child classes begin with at least these attributes:
-
-    | Attribute Name       | Description                                      |
-    | -------------------- | ------------------------------------------------ |
-    | file                 | Path/name of file represented by object          |
-    | iter/time/runtime    | Iteration/datetime/runtime of the current frame  |
-    | iters/times/runtimes | Lists of all iterations/times of each data frame |
-    | *_range              | The range of iterations/epochs covered in file   |
-    | ndim                 | Number of spatial dimensions covered by the data |
-    | nframe               | The total number of data frames within the file  |
-    | iframe               | The current frame loaded (zero-based)            |
-    | format               | The format of the file, either binary or ascii   |
-    | header               | The raw string header of the file                |
-
-    Notes
-    -----
-    PyBats assumes little endian byte ordering because
-    this is what most machines use.  However, there is an autodetect feature
-    such that, if PyBats doesn't make sense of the first read (a record length
-    entry, or RecLen), it will proceed using big endian ordering.  If this
-    doesn't work, the error will manifest itself through the "struct" package
-    as an "unpack requires a string of argument length 'X'".
-
-    .. versionchanged:: 0.5.0
-
-       Unstructured data are presented as in the files. When reading
-       3D magnetosphere files, this preserves the 3D block structure,
-       as required for the BATSRUS interpolator in the `Kamodo
-       Heliophysics model readers package
-       <https://github.com/nasa/kamodo>`_. Before 0.5.0, binary
-       unstructured data were sorted in an attempt to put nearby
-       positions close to each other in the data arrays. This sorting
-       was nondeterministic and has been removed; see
-       :meth:`~spacepy.pybats.bats.Bats2d.extract` and
-       :class:`~spacepy.pybats.qotree.QTree` for processing
-       adjacent cells. (ASCII data were never sorted.)
 
     Parameters
     ----------
@@ -1206,6 +1018,30 @@ class IdlFile(PbData):
     keep_case : bool
         If set to True, the case of variable names will be preserved.  If
         set to False, variable names will be set to all lower case.
+    
+    Notes
+    -----
+    PyBats assumes little endian byte ordering because
+    this is what most machines use.  However, there is an autodetect feature
+    such that, if PyBats doesn't make sense of the first read (a record length
+    entry, or RecLen), it will proceed using big endian ordering.  If this
+    doesn't work, the error will manifest itself through the "struct" package
+    as an "unpack requires a string of argument length 'X'".
+
+    .. versionchanged:: 0.5.0
+
+        Unstructured data are presented as in the files. When reading
+        3D magnetosphere files, this preserves the 3D block structure,
+        as required for the BATSRUS interpolator in the `Kamodo
+        Heliophysics model readers package
+        <https://github.com/nasa/kamodo>`_. Before 0.5.0, binary
+        unstructured data were sorted in an attempt to put nearby
+        positions close to each other in the data arrays. This sorting
+        was nondeterministic and has been removed; see
+        :meth:`~spacepy.pybats.bats.Bats2d.extract` and
+        :class:`~spacepy.pybats.qotree.QTree` for processing
+        adjacent cells. (ASCII data were never sorted.)
+        
     '''
 
     def __init__(self, filename, iframe=0, header='units',
@@ -1322,7 +1158,7 @@ class IdlFile(PbData):
 
     def switch_frame(self, iframe):
         '''
-        For files that have more than one data frame (i.e., `*.outs` files),
+        For files that have more than one data frame (i.e., ``*.outs`` files),
         load data from the *iframe*-th frame into the object replacing what is
         currently loaded.
         '''
@@ -1711,80 +1547,9 @@ class NgdcIndex(PbData):
 
 
 class ImfInput(PbData):
-    '''
+    """
     A class to read, write, manipulate, and visualize solar wind upstream
-    input files for SWMF simulations.  More about such files can be found
-    in the SWMF/BATS-R-US documentation for the \\#SOLARWINDFILE command.
-
-    Creating an :class:`ImfInput` object is simple:
-
-    >>> from spacepy import pybats
-    >>> obj=pybats.ImfInput(filename='test.dat', load=True)
-
-    Upon instantiation, if *filename* is a valid file AND kwarg *load* is set
-    to boolean True, the contents of *filename* are loaded into the object
-    and no other work needs to be done.
-
-    If *filename* is False or *load* is False, a blank :class:`ImfInput file`
-    is created for the user to manipulate.
-    The user can set the time array and the
-    associated data values (see *obj.attrs['var']* for a list) to any values
-    desired and use the method *obj.write()* to dump the contents to an SWMF
-    formatted input file.  See the documentation for the write method for
-    more details.
-
-    Like most :mod:`~spacepy.pybats` objects, you may interact with
-    :class:`ImfInput` objects as if they were specialized dictionaries.
-    Access data like so:
-
-    >>> obj.keys()
-    ['bx', 'by', 'bz', 'vx', 'vy', 'vz', 'n', 't']
-    >>> density=obj['n']
-
-    Adding new data entries is equally simple so long as you have the values
-    and the name for the values:
-
-    >>> import numpy as np
-    >>> u = np.sqrt(obj['ux']**2 + obj['uy']**2 + obj['uz']**2)
-    >>> obj['u']=u
-
-    If new data entries are added as :class:`~spacepy.datamodel.dmarray`
-    objects, the `label` and `units` attributes can be set to enhance plotting.
-
-    >>> from spacepy import datamodel
-    >>> u = np.sqrt(obj['ux']**2 + obj['uy']**2 + obj['uz']**2)
-    >>> obj['u']= datamodel.dmarray(u, {'units': '$km/s$', 'label': '|U|'})
-
-    Concerning Variable Naming & Order
-    ----------------------------------
-    By default, IMF files contain the following variables in this order:
-
-    Year, month, day, hour, minute, second, millisecond, bx, by, bz,
-    vx, vy, vz, n, t
-
-    If the variable order changes, or if new state variables are included
-    (e.g., species-specific densities for multi-ion simulations), the
-    #VAR entry must be included in the solar wind file.  While the SWMF
-    documentation refers to density and temperature values as having names
-    'dens' or 'temp', **only 'n', 't', or MHD state variable names as defined
-    in the BATS-R-US equation file are accepted.**.  In multi-ion simulations,
-    'n' is the total number density; all other densities must sum to 'n'.
-
-    To illustrate, consider this example of converting a single fluid input
-    file to a multi-fluid input file where density is split evenly across
-    two ion species: a solar wind fluid and an ionosphere fluid that has
-    minimal density upstream of the Earth. Each fluid has an explicit state
-    variable name defined in the BATS-R-US equation module that configures the
-    multi-fluid configuration.
-
-    >>> import numpy as np
-    >>> from spacepy import pybats, datamodel
-    >>> imf = pybats.ImfInput('tests/data/pybats_test/imf_single.dat')
-    >>> imf['IonoRho'] = datamodel.dmarray(np.zeros(imf['n'].shape) + 0.01,
-    ... {'units': '$cm^{-3}$', 'label': '$\\rho_{Iono}$'})
-    >>> imf['SwRho'] = imf['n'] - imf['IonoRho']
-    >>> imf['SwRho'].attrs['label'] = '$\\rho_{Sw}$'
-    >>> imf.quicklook( ['bz', ['n', 'SwRho', 'IonoRho'], 'pram'])
+    input files for SWMF simulations.
 
     =========== ============================================================
     Kwarg       Description
@@ -1796,7 +1561,7 @@ class ImfInput(PbData):
 
     .. versionchanged:: 0.5.0
         Default variable names for temperature and density are now 't' and 'n'.
-    '''
+    """
 
     def __init__(self, filename=False, load=True, npoints=0, *args, **kwargs):
         from numpy import zeros
@@ -1928,7 +1693,7 @@ class ImfInput(PbData):
         # Const: nT->T, m->km, mu_0, proton mass, cm-3->m-3.
         const = 1E-12/np.sqrt(4.*np.pi*10**-7*1.67E-27*100**3)
 
-        self['vAlf'] = dmarray(const*self['b']/np.sqrt(self['rho']),
+        self['vAlf'] = dmarray(const*self['b']/np.sqrt(self[self._denvar]),
                                {'units': '$km/s$', 'label': r'V$_{Alf}'})
 
         return True
@@ -1947,6 +1712,60 @@ class ImfInput(PbData):
                                 {'units': None, 'label': 'M$_{Alfven}$'})
 
         return True
+
+    def calc_clock(self):
+        '''
+        Calculate and store IMF clock angle, defined as the angle of the
+        interplanetary magnetic field (IMF) in the GSM Y-Z plane. A clock
+        angle of zero represents purely northward IMF while 180 represents
+        purely southward configuration.
+
+        The resulting value is stored as ``self['clock']`` in units of degrees.
+
+        Notes
+        -----
+        .. versionadded:: 0.6.0
+        '''
+
+        self['clock'] = dmarray(180/np.pi * np.arctan2(self['by'], self['bz']),
+                                attrs={'units': r'$^{\circ}$',
+                                       'label': 'Clock Angle'})
+
+    def calc_epsilon(self):
+        '''
+        Calculate the epsilon parameter, an approximation of power input into
+        the magnetosphere. It is Poynting flux ($E \times B / \\mu_0$) scaled
+        to the solar wind clock angle. Thus, it is an energy flux, or,
+        equivalently, power-per-unit area.
+
+        The resultant quantity is stored as ``self['epsilon']`` and has units
+        of $W/m^2$.
+
+        For full details, see Perreault and Akasofu(1978),
+        https://doi.org/10.1111/j.1365-246X.1978.tb05494.x.
+
+        Notes
+        -----
+        .. versionadded:: 0.6.0
+        '''
+
+        if 'b' not in self:
+            self.calc_b()
+        if 'u' not in self:
+            self.calc_u()
+        if 'clock' not in self:
+            self.calc_clock()
+
+        # Calculate mu-naught
+        mu_o = 4*np.pi*1E-7
+
+        # Calculate conversion factors:
+        conv = 1000. * 1E-9**2 / mu_o  # km/s->m/s; nT**2->T**2
+        clock = np.sin(np.pi/180 * self['clock']/2)**4
+
+        self['epsilon'] = dmarray(conv*self['u'] * self['b']**2 * clock,
+                                  attrs={'units': '$W/m^2$',
+                                         'label': r'$\epsilon$'})
 
     def varcheck(self):
         '''
@@ -2128,9 +1947,6 @@ class ImfInput(PbData):
 
         Parameters
         ==========
-
-        Other Parameters
-        ================
         target : Figure or Axes
             If None (default), a new figure is generated from scratch.
             If a matplotlib Figure object, a new axis is created
@@ -2209,16 +2025,16 @@ class ImfInput(PbData):
         SWMF.  Default behavior creates a figure showing the three components
         of IMF, solar wind density, and Earthward velocity. The resulting
         figure will be a paper-sized plot with one axes object per entry in
-        `plotvars`.
+        ``plotvars``.
 
-        The `plotvars` keyword controls the behavior of the resulting plot.
-        For example, `['rho', 'pram', ['bx','by','bz']]` will create three
+        The ``plotvars`` keyword controls the behavior of the resulting plot.
+        For example, ``['rho', 'pram', ['bx','by','bz']]`` will create three
         subplots with the three IMF components on a single axes.
 
-        Additional empty axes can be added by specifying a `plotvar` entry
+        Additional empty axes can be added by specifying a ``plotvar`` entry
         that is not a valid key to the `ImfInput` object. This is useful in
         some circumstances, e.g., cases where the user may want to plot a
-        non-solar wind value, such as Dst, from another source. The `plotvar`
+        non-solar wind value, such as Dst, from another source. The ``plotvar``
         string will be used as the y-axis label.
 
         Other Parameters
@@ -2230,8 +2046,8 @@ class ImfInput(PbData):
         colors : list of strings, optional
             The colors of the resulting lines as a list of Matplotlib color
             compatible strings (e.g., '#000000', 'k', 'lightgrey'). The shape
-            of the list should match that of `plotvars`; if not, `quicklook`
-            will fill in with default colors. Any axes with multiple `plotvars`
+            of the list should match that of ``plotvars``; if not, `quicklook`
+            will fill in with default colors. Any axes with multiple ``plotvars``
             specified but only a single color will have that color repeated for
             each line placed on the axes. Default behavior is to use the
             current Matplotlib color cycle.
@@ -2240,7 +2056,7 @@ class ImfInput(PbData):
             the resulting plot.
         title : str, optional
             Title to place at the top of the figure, defaults to,
-            'Solar Wind Drivers `{self.attrs["coor"]` Coordinates)'
+            'Solar Wind Drivers ``{self.attrs["coor"]`` Coordinates)'
         legloc : str, default='best'
             Location of any legends place on axes with more than one variable.
 

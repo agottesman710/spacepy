@@ -1,13 +1,13 @@
-Building spacepy for distribution (20230725)
+Building spacepy for distribution (20240306)
 ============================================
 Since this has to happen on multiple platforms, a single script doesn't work.
 
 Prepare the release commit
 --------------------------
 
-Note: it's probably best to get the latest up on test PyPI first to
-make sure it works! Also best to go through this process for a release
-candidate to test PyPI https://www.python.org/dev/peps/pep-0440/#pre-releases.
+Go through this process for a release candidate and upload to test
+PyPI first (https://www.python.org/dev/peps/pep-0440/#pre-releases)
+and, once final build is ready, also check it on test PyPI.
 
 Edit the release notes to include the release date.
 
@@ -17,6 +17,7 @@ Edit Doc/source/conf.py. Around line 128, remove (DRAFT) from the title.
     Change version around line 72 (two places!)
 Change version in setup.py, in setup_kwargs near bottom.
 Change __version__ around line 209 of __init__.py.
+Edit pyproject.toml around line 18 to change version.
 
 Commit these changes. Submit PR. (Tagging is done on github now.)
 
@@ -38,8 +39,7 @@ Make a clean isolated environment just for SpacePy build:
 ~/miniconda/bin/conda create -y -n spacepy_build python=3
 source ~/miniconda/bin/activate spacepy_build
 conda install -y pip python-build wheel
-conda install -y numpy
-conda install -y scipy matplotlib h5py astropy sphinx numpydoc
+conda install -y numpy scipy matplotlib h5py astropy sphinx numpydoc
 
 (Use "conda deactivate" when done, but not done yet...))
 
@@ -90,13 +90,30 @@ are not included in the source distribution. They need to be put in
 developer/scripts in the unzipped source so they can find the rest of
 SpacePy. Yes this could be improved.
 
-Download latest (currently 3.9) 64-bit Miniconda from
+Download the CDF library and extract the DLL. This is easiest done on
+the Unix side and then transferred over--it just needs to be in the
+top-level directory with setup.py.
+    wget https://spdf.gsfc.nasa.gov/pub/software/cdf/dist/cdf39_1/windows/cdf3.9.1_64bit_WinZip_Installer.zip
+    unzip -j cdf3.9.1_64bit_WinZip_Installer.zip bin/dllcdf.dll
+
+Download latest 64-bit Miniconda from
 https://docs.conda.io/en/latest/miniconda.html and put it in the
-system-default download directory (%USERPROFILE%\Downloads)
+user-default download directory (%USERPROFILE%\Downloads)
+
+MSVC needs to be installed from
+https://visualstudio.microsoft.com/visual-cpp-build-tools/ before
+making the Python 3.12 environment, and should be uninstalled
+after. This can be done before building the entire Windows build
+system (following) or by separating out the 3.12 work.
+
+Run the rest of the process in a command prompt with administrator
+access so that Miniconda can be installed to a reasonable location--if
+it is installed to the user's directory, there's often a space there,
+and that confuses f2py.
 
 Set up conda environments for the build by running
 "win_build_system_setup.cmd build". This will make conda environments
-and install the earliest supported version of numpy in each. Then run
+for each version of Python. Then run
 build_win.cmd to make Windows binaries and wheels, and
 win_build_system_teardown.cmd to remove those environment (and
 miniconda). Windows binaries and wheels will be in the "dist"
@@ -107,64 +124,81 @@ Runtime to terminate it in an unusual way" with a popup "python.exe
 has stopped working." This doesn't seem to be a problem, just click
 "Close the program" in the popup.
 
-Making Linux and Mac binaries
+Making Mac binaries
 -----------------------------
-Skip this for now, will need investigation into Mac portability across
-OS versions, as well as Linux cross-distro compatibility. See
-https://www.python.org/dev/peps/pep-0513/.
+Assumes miniconda is in ~/opt/miniconda. E.g. download the "bash" (.sh), install for me only, do not change install location
+sh ./Miniconda3-latest-MacOSX-x86_64.sh -b -p ~/opt/miniconda/
 
-Assumes miniconda is in ~/miniconda.
+conda only has gfortran 11.2 and 11.3. 11.2 installs libgfortran-5.0.0, so may have a limitation on what C library that gets compiled against. In the future check https://stackoverflow.com/questions/17910684/static-libgfortran-in-library-build
 
-Unzip the source distribution made above into another directory. Copy
-over the developer/scripts/unix_wheels.sh script into that directory
-(top-level is fine, next to setup.py) Run:
-    bash ./unix_wheels.sh
+Download the CDF library; need to build from source since they compile against a new SDK. You can check this at https://stackoverflow.com/questions/17143373/determine-minimum-osx-version-a-binary-was-compiled-for
+Do this build WITHOUT having conda loaded (so we don't get the wrong ld)
 
-The binary wheels will be in the "dist" directory.
+curl https://spdf.gsfc.nasa.gov/pub/software/cdf/dist/cdf39_1/macosx/src_distribution/cdf39_1-dist-cdf.tar.gz --output cdf39_1-dist-cdf.tar.gz
+tar -zxvf cdf39_1-dist-cdf.tar.gz
+cd cdf39_1-dist
+# So we can override this later
+sed -i '' 's/LDLIB=-L\$(XCODEDir)/LDLIB?=-L\$(XCODEDir)/' Makefile
+# if you need real xcodeversion, use this, but "10.2" gets the new codepath
+# pkgutil --pkg-info=com.apple.pkg.CLTools_Executables
+# For Apple Silicon
+SDKROOT=/opt/MacOSX11.0.sdk make XCODEVERSION=10.2 LDLIB=-L/opt/MacOSX11.0.sdk/usr/lib OS=macosx ENV=arm64 SHARED=yes CURSES=no FORTRAN=no all
+# For Intel
+SDKROOT=/opt/MacOSX10.9.sdk make XCODEVERSION=10.2 LDLIB="-L/opt/MacOSX10.9.sdk/usr/lib -L/opt/MacOSX10.9.sdk/usr/lib/system" OS=macosx ENV=x86_64 SHARED=yes CURSES=no FORTRAN=no all
+
+Unzip the spacepy source distribution made above into another directory. Copy
+over the developer/scripts/mac_x86_wheels.sh script into that directory
+(top-level is fine, next to setup.py) and also copy in the final compiled CDF library (src/lib/libcdf.dylib) Run:
+    zsh ./mac_x86_wheels.sh
+
+The binary wheels will be in the "dist" directory. Do this whole process for both x86 and ARM (mac_arm_wheels.sh).
+
+Making Linux binaries
+-----------------------------
+Information on cross-distro compatibility is at:
+https://peps.python.org/pep-0513/
+https://peps.python.org/pep-0599/
+https://peps.python.org/pep-0600/
+https://github.com/pypa/manylinux
+https://github.com/pypa/auditwheel/tree/main
+https://quay.io/organization/pypa
+http://www.martin-rdz.de/index.php/2022/02/05/manually-building-manylinux-python-wheels/
+
+We build to manylinux2014_x86_64 since that's the oldest currently supported; that's roughly Ubuntu 20.04 and CentOS 7.
+
+sudo aptitude install docker.io
+sudo usermod -aG docker USERNAME
+docker run -i -t --rm -v `pwd`:/io quay.io/pypa/manylinux2014_x86_64 /bin/bash /io/developer/scripts/manylinux_wheels.sh
+
+Need to change owner of the wheels after they're copied out, in the future can try running docker with --user $(id -u):$(id -g) but then will need to work with write permissions for the pip installs inside the container.
+
+To build for ARM (Raspberry Pi):
+sudo aptitude install binfmt-support qemu-user-static
+docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+docker run -i -t --rm -v `pwd`:/io --platform linux/arm64 quay.io/pypa/manylinux2014_aarch64 /bin/bash /io/developer/scripts/manylinux_wheels.sh
+
+See:
+https://www.stereolabs.com/docs/docker/building-arm-container-on-x86
+https://stackoverflow.com/questions/70872114/x86-docker-image-on-arm
+https://github.com/pypa/manylinux/
 
 Fixing wheel metadata version
 -----------------------------
 
-The wheels are compliant with metadata 2.0 but are labeled as 2.1, which makes for problems unless everybody has the very newest version of everything. For now, we should edit them. This should be done on ALL the wheels (so ideally collect together the wheels built on different systems into a single dist directory).
+Wheels are built with metadata 2.1. Support for this was included in
+setuptools 38.0 (SpacePy requires 44.1.1) and wheel 0.31.0
+(0.34.2). The pip changelog doesn't note when this support was added,
+but 10.0 came out about the same time as wheel 0.31.0, and we require
+20.0.2. build had no releases before 2020; wheel 0.31 was released and
+PEP 566 accepted in 2018. So we no longer need to roll back to
+metadata 2.0 and can use 2.1 directly.
 
-for i in *.whl; do unzip $i "spacepy-*.dist-info/METADATA"; sed -i -e "s/Metadata-Version: 2.1/Metadata-Version: 2.0/" spacepy-*.dist-info/METADATA; zip $i "spacepy-*.dist-info/METADATA"; rm -rf spacepy-*.dist-info; done
-
-General notes on binaries:
+General notes on binaries
+-------------------------
 
 It looks like the wheels are compatible across Windows versions,
 i.e. a wheel built on Windows 10 seems to install okay in Windows 7,
 which is great.
-
-Using the oldest supported numpy for the build is used for ABI
-compatibility for the f2py-built extensions (irbem mostly). See
-https://github.com/numpy/numpy/issues/5888. It looks like there isn't
-a way to specify the ABI version in f2py so the only answer is to
-compile with an old-enough numpy. In particular there's a note "SciPy
-pins its build system to the oldest numpy it wishes to support".
-
-ABI is in numpy/core/setup_common.py and there's no history, so going
-through the git tags for each numpy release gives:
-
-1.4 through current main : 0x01000009
-
-It looks like ABI version is a complete break: if it changes, old
-modules will no longer work. However, the API version is backward
-compatible: any version with a particular API version can be used on
-anything with the same API version (even older numpy versions) or
-newer, provided ABI version is the same. There's a list in
-numpyconfig.h but it disagrees with the history given in
-setup_common.py; they are probably used for slightly different
-purposes. History going through commits of setup_common.py is:
-
-1.10.0, 1.11.0, 1.12.0: 0x0000000a
-1.13.0: 0x0000000b
-1.14.0, 1.15.0: 0x0000000c
-1.16.0, 1.17.0, 1.18.0, 1.19.0: 0x0000000d
-1.20.0, 1.21.0: 0x0000000e
-
-The list in the latest setup_common.py is incomplete (it seems to
-imply that gaps are filled with the same value.)
-
 
 Docs
 ----
@@ -204,8 +238,9 @@ directory. Use the spacepy_build conda environment and install twine:
   conda install twine
 
 and then do the upload:
+To do the upload, you need to authenticate with an API token, see https://test.pypi.org/help/#apitoken
 
-  PYTHONNOUSERSITE=1 PYTHONPATH= twine upload -r testpypi spacepy-*-doc.zip spacepy-*.whl spacepy-*.tar.gz
+  PYTHONNOUSERSITE=1 PYTHONPATH= twine upload -r testpypi spacepy-*.whl spacepy-*.tar.gz
 
 PyPI does not support Windows standalone installers, and can only take
 one source distribution (zip or tar.gz); build seems to prefer the tarball.
@@ -246,8 +281,8 @@ necessarily the best) is to use just "x.y.z" as the title with nothing
 the "describe."
 
 Click in the "upload binaries" area and upload all the files: source
-distribution, wheels, documentation PDF (spacepy-x.y.z-doc.pdf) and a
-zip (spacepy-x.y.z-doc.zip).
+distribution tar.gz, wheels, documentation PDF (spacepy-x.y.z-doc.pdf)
+and a zip (spacepy-x.y.z-doc.zip).
 
 Documentation update
 --------------------

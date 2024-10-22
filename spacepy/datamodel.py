@@ -1,13 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-The datamodel classes constitute a data model implementation
-meant to mirror the functionality of the data model output from pycdf, though
-implemented slightly differently.
+Data model conceptually similar to HDF5 and CDF.
 
-This contains the following classes:
- * :py:class:`dmarray` - numpy arrays that support .attrs for information about the data
- * :py:class:`SpaceData` - base class that extends dict, to be extended by others
+For more documentation :doc:`../datamodel`
 
 Authors: Steve Morley and Brian Larsen
 
@@ -18,145 +14,6 @@ Institution: Los Alamos National Laboratory
 Contact: smorley@lanl.gov; balarsen@lanl.gov
 
 Copyright 2010-2016 Los Alamos National Security, LLC.
-
-
-About datamodel
----------------
-
-The SpacePy datamodel module implements classes that are designed to make implementing a standard
-data model easy. The concepts are very similar to those used in standards like HDF5, netCDF and
-NASA CDF.
-
-The basic container type is analogous to a folder (on a filesystem; HDF5 calls this a
-group): Here we implement this as a dictionary-like object, a datamodel.SpaceData object, which
-also carries attributes. These attributes can be considered to be global, i.e. relevant for the
-entire folder. The next container type is for storing data and is based on a numpy array, this
-class is datamodel.dmarray and also carries attributes. The dmarray class is analogous to an
-HDF5 dataset.
-
-In fact, HDF5 can be loaded directly into a SpacePy datamodel, carrying across all attributes,
-using the function fromHDF5:
-
->>> import spacepy.datamodel as dm
->>> data = dm.fromHDF5('test.h5')
-
-Functions are also available to directly load data and metadata into a
-SpacePy datamodel from NASA CDF as well as JSON-headed ASCII. Writers also
-exist to output a SpacePy datamodel directly to HDF5 or JSON-headed ASCII.
-See `datamodel.fromCDF`, `datamodel.readJSONheadedASCII`,
-`datamodel.toHDF5`, and `datamodel.toJSONheadedASCII` for more details.
-
-
-Examples
---------
-
-Imagine representing some satellite data within the global attributes might be
-the mission name and the instrument PI, the variables might be the
-instrument counts [n-dimensional array], timestamps[1-dimensional array and an orbit number [scalar].
-Each variable will have one attribute (for this example).
-
->>> import spacepy.datamodel as dm
->>> mydata = dm.SpaceData(attrs={'MissionName': 'BigSat1'})
->>> mydata['Counts'] = dm.dmarray([[42, 69, 77], [100, 200, 250]], attrs={'Units': 'cnts/s'})
->>> mydata['Epoch'] = dm.dmarray([1, 2, 3], attrs={'units': 'minutes'})
->>> mydata['OrbitNumber'] = dm.dmarray(16, attrs={'StartsFrom': 1})
->>> mydata.attrs['PI'] 'Prof. Big Shot'
-
-This has now populated a structure that can map directly to a NASA CDF, HDF5 or JSON-headed ASCII file.
-To visualize our datamodel, we can use tree method (which can be applied to any dictionary-like object
-using :func:`~spacepy.toolbox.dictree`).
-
->>> mydata.tree(attrs=True)
-
-::
-
-    +
-    :|____MissionName
-    :|____PI
-    |____Counts
-         :|____Units
-    |____Epoch
-         :|____units
-    |____OrbitNumber
-         :|____StartsFrom
-
-
-Guide for NASA CDF users
-------------------------
-By definition, a NASA CDF only has a single 'layer'. That is, a CDF contains a series of records
-(stored variables of various types) and a set of attributes that are either global or local in
-scope. Thus to use SpacePy's datamodel to capture the functionality of CDF the two basic data types
-are all that is required, and the main constraint is that datamodel.SpaceData objects cannot be
-nested (more on this later, if conversion from a nested datamodel to a flat datamodel is required).
-
-
-Opening a CDF and working directly with the contents can be easily done using the PyCDF module, however,
-if you wish to load the entire contents of a CDF directly into a datamodel (complete with attributes)
-the following will make life easier:
-
->>> import spacepy.datamodel as dm
->>> data = dm.fromCDF('inFile.cdf')
-
-
-A quick guide to JSON-headed ASCII
-----------------------------------
-In many cases it is preferred to have a human-readable ASCII file, rather than a binary file like CDF
-or HDF5. To make it easier to carry all the same metadata that is available in HDF5 or CDF we have
-developed an ASCII data storage format that encodes the metadata using JSON (JavaScript Object Notation).
-This notation supports two basic datatypes: key/value collections (like a SpaceData) and ordered lists
-(which can represent arrays). JSON is human-readable, but if large arrays are stored in metadata is quickly
-becomes difficult to read. For this reason we use JSON to encode the metadata (usually smaller datasets)
-and store the data in a standard flat-ASCII format. The metadata is provided as a header that describes
-the contents of the file.
-
-
-To use JSON for storing only metadata associated with the data to be written to an ASCII file a minimal
-metadata standard must be implemented. We use the following attribute names: DIMENSION and START_COLUMN.
-We also recommend using the NASA ISTP metadata standard to assign attribute names. The biggest limitation
-of flat ASCII is that sensibly formatting datasets of more than 2-dimensions (i.e. ranks greater than 2)
-is not possible. For this reason if you have datasets of rank 3 or greater then we recommend using HDF5.
-If text is absolutely required then it is possible to encode multi-dimensional arrays in the JSON metadata,
-but this is not recommended.
-
-
-This format is best understood by illustration. The following example builds a toy SpacePy datamodel and
-writes it to a JSON-headed ASCII file. The contents of the file are then shown.
-
->>> import spacepy.datamodel as dm
->>> data = dm.SpaceData()
->>> data.attrs['Global'] = 'A global attribute'
->>> data['Var1'] = dm.dmarray([1,2,3,4,5], attrs={'Local1': 'A local attribute'})
->>> data['Var2'] = dm.dmarray([[8,9],[9,1],[3,4],[8,9],[7,8]])
->>> data['MVar'] = dm.dmarray([7.8], attrs={'Note': 'Metadata'})
->>> dm.toJSONheadedASCII('outFile.txt', data, depend0='Var1', order=['Var1'])
-#Note that not all field names are required, those not given will be listed
-#alphabetically after those that are specified
-
-The file looks like:
-
-.. code-block:: none
-
-    #{
-    #    "MVar": {
-    #        "Note": "Metadata",
-    #        "VALUES": [7.8]
-    #    },
-    #    "Global": "A global attribute",
-    #    "Var1": {
-    #        "Local1": "A local attribute",
-    #        "DIMENSION": [1],
-    #        "START_COLUMN": 0
-    #    },
-    #    "Var2": {
-    #        "DIMENSION": [2],
-    #        "START_COLUMN": 2
-    #    }
-    #}
-    1 8 9
-    2 9 1
-    3 3 4
-    4 8 9
-    5 7 8
 
 """
 
@@ -237,12 +94,6 @@ class ISTPArray:
     these are in `ISTPContainer`.
 
     .. versionadded:: 0.5.0
-
-    .. autosummary::
-        ~ISTPArray.plot_as_line
-        ~ISTPArray.replace_invalid
-    .. automethod:: plot_as_line
-    .. automethod:: replace_invalid
     """
     attrs: collections.abc.Mapping
 
@@ -306,6 +157,149 @@ class ISTPArray:
         # Reasonable dividing line is probably 4 stacked line plots
         return self.shape[-1] < 5
 
+    def units(self, fmt='minimal'):
+        """Finds units of array.
+
+        Looks up the unit attribute and performs minor cleanup (including
+        intepreting IDL codes).
+
+        Returns
+        -------
+        `str`
+            Physical units of this array. `None` if not present.
+
+        Parameters
+        ----------
+        fmt : {'minimal', 'latex', 'astropy', 'raw'}
+            How to format the units: ``minimal`` (default) is a
+            minimally-processed rendering, ``latex`` is in LaTeX,
+            ``astropy`` is meant to give good results when passed to
+            `astropy.units.Unit`, and ``raw`` has no processing. No
+            checks are done on processing for AstroPy or LaTeX, and it
+            should not be assumed they will parse.
+
+        Notes
+        -----
+        .. versionadded:: 0.6.0
+        """
+        u = self.attrs.get('UNITS', None)
+        if fmt == 'raw' or u is None:
+            return u
+        if fmt == 'astropy':
+            u = u.replace('#', '1')
+        elif fmt == 'latex':
+            u = u.replace('#', '\\#')
+        if fmt in ('minimal', 'astropy'):
+            u = re.sub(r'![EU]([^!]*)!N', r'^\1', u)  # IDL to exponent
+            u = re.sub(r'\^{([^!]*)}', r'^\1', u)  # LaTeX to exponent
+        if fmt == 'minimal':
+            u = re.sub(r'(?<=\d)(?=[\w^_])', r' ', u)  # Insert spaces
+        if fmt == 'astropy':
+            # Common substitutions
+            for orig, ap in (('ster', 'sr'),
+                             ('cc', 'cm^3'),
+                             ):
+                u = re.sub(fr'((?<=[\W\d])|^){orig}(?=[\W\d]|$)', ap, u)
+        if fmt == 'latex':
+            u = re.sub(r'![EU]([^!]*)!N', r'^{\1}', u)  # IDL to exponent
+        return u
+
+    def toQuantity(self, copy=True):
+        """Convert to Astropy Quantity
+
+        Converts this array to an Astropy `~astropy.units.Quantity`.
+        Invalid values are replaced with `~numpy.nan`.
+
+        Returns
+        -------
+        `~astropy.units.Quantity`
+            Data from this array interpreted according to its ``UNITS``
+            attribute.
+
+        Other Parameters
+        ----------------
+        copy : `bool`, default ``True``
+            Copy data to the Quantity. If ``False``, changes to the
+            Quantity may affect the source array. In some cases a copy
+            may be made even if ``False``.
+
+        Notes
+        -----
+        .. versionadded:: 0.6.0
+
+        Examples
+        --------
+        >>> import spacepy.datamodel
+        # https://rbsp-ect.newmexicoconsortium.org/data_pub/rbspa/ECT/level2/
+        >>> data = spacepy.datamodel.fromCDF(
+        ...     'rbspa_ect-elec-L2_20140115_v2.1.0.cdf')
+        >>> q = data['Position'].toQuantity()
+        >>> q.to('m')
+        <Quantity [[-32833200. , -15531762. ,  -6449212. ],
+                   [-32903586. , -15406271. ,  -6448704.5],
+                   [-32967848. , -15277711. ,  -6446542.5],
+                   ...,
+                   [-20966128. ,   6941849.5,  -2896334.2],
+                   [-21515586. ,   6858618. ,  -3026324. ],
+                   [-22047328. ,   6783260.5,  -3153003.5]] m>
+        """
+        import astropy.units
+        data = self.replace_invalid()  # makes copy
+        if not numpy.isnan(data).any() and not copy:
+            data = self[...]
+        q = astropy.units.Quantity(data, self.units(fmt='astropy'), copy=False)
+        return q
+
+    @classmethod
+    def fromQuantity(cls, q, copy=True):
+        """Convert from Astropy Quantity
+
+        Converts an Astropy `~astropy.units.Quantity` to an ISTP array.
+        `~numpy.nan` are replaced with fill.
+
+        Parameters
+        ----------
+        q : `~astropy.units.Quantity`
+            Quantity to convert
+
+        Returns
+        -------
+        `ISTPArray`
+            Array with attributes which can be inferred from input.
+            This may not be fully ISTP-compliant.
+
+        Other Parameters
+        ----------------
+        copy : `bool`, default ``True``
+            Copy data from the Quantity. If ``False``, changes to the
+            Quantity may affect this array. In some cases a copy
+            may be made even if ``False``.
+
+        Notes
+        -----
+        .. versionadded:: 0.6.0
+        """
+        import astropy.units
+        fill = numpy.isnan(q.value)
+        if fill.any():
+            copy = True
+        data = q.value.copy() if copy else q.value
+        data[fill] = -1e31  # Quantities are always float
+        s = q.unit.si
+        # Force scientific notation, remove superfluous signs and zeros
+        scale = re.sub(r'0*e\+?0*', 'e', f'{s.scale:#e}', count=1)
+        # Unscaled formatter is deprecated, so strip the scale the hard way
+        unscaled = (s / astropy.units.Unit(s.scale)).to_string()
+        # and remove extra spaces around operators
+        unscaled = re.sub(r'\s+([^\w])\s+', r'\1', unscaled)
+        attrs = {
+            'FILLVAL': -1e31,
+            'SI_Conversion': f'{scale}>{unscaled}',
+            'UNITS': q.unit.to_string(),
+        }
+        out = cls(data, attrs)
+        return out
+
 
 class ISTPContainer(collections.abc.Mapping):
     """Mixin class for containers using ISTP metadata.
@@ -316,16 +310,6 @@ class ISTPContainer(collections.abc.Mapping):
     and are unlikely to give good results if that is not the case.
 
     .. versionadded:: 0.5.0
-
-    .. autosummary::
-        ~ISTPContainer.lineplot
-        ~ISTPContainer.main_vars
-        ~ISTPContainer.plot
-        ~ISTPContainer.spectrogram
-    .. automethod:: lineplot
-    .. automethod:: main_vars
-    .. automethod:: plot
-    .. automethod:: spectrogram
     """
     attrs:  collections.abc.Mapping
 
@@ -380,9 +364,9 @@ class ISTPContainer(collections.abc.Mapping):
             else:
                 ax.plot(numpy.array(x), data[:, dim], **plot_kwargs)
         ylabel = v.attrs.get('LABLAXIS', '')
-        if v.attrs.get('UNITS'):
-            ylabel = '{}{}({})'.format(
-                ylabel, ' ' if ylabel else '', v.attrs['UNITS'])
+        u = v.units(fmt='latex')
+        if u.strip():
+            ylabel = '{}{}(${}$)'.format(ylabel, ' ' if ylabel else '', u)
         if ylabel:
             ax.set_ylabel(ylabel)
         if x.attrs.get('LABLAXIS'):
@@ -526,9 +510,10 @@ class ISTPContainer(collections.abc.Mapping):
         x = self[v.attrs['DEPEND_0']]
         y = self[v.attrs['DEPEND_1']]
         zlabel = v.attrs.get('LABLAXIS', '')
-        if v.attrs.get('UNITS'):
-            zlabel = '{}{}({})'.format(
-                zlabel, ' ' if zlabel else '', v.attrs['UNITS'])
+        u = v.units(fmt='latex')
+        if u.strip():
+            zlabel = '{}{}(${}$)'.format(
+                zlabel, ' ' if zlabel else '', u)
         zlabel = zlabel if zlabel else None
         try:  # mpl >=3.7
             cmap = matplotlib.colormaps.get_cmap(None)
@@ -544,9 +529,10 @@ class ISTPContainer(collections.abc.Mapping):
         ax = spacepy.plot.simpleSpectrogram(numpy.array(x), numpy.array(y), data, cbtitle=zlabel,
                                             ax=ax, zero_valid=True, cmap=cmap)
         ylabel = y.attrs.get('LABLAXIS', '')
-        if y.attrs.get('UNITS'):
-            ylabel = '{}{}({})'.format(
-                ylabel, ' ' if ylabel else '', y.attrs['UNITS'])
+        u = y.units(fmt='latex')
+        if u.strip():
+            ylabel = '{}{}(${}$)'.format(
+                ylabel, ' ' if ylabel else '', u)
         if ylabel:
             ax.set_ylabel(ylabel)
         if x.attrs.get('LABLAXIS'):
@@ -593,6 +579,142 @@ class ISTPContainer(collections.abc.Mapping):
             return(dp,)
         return(self[v.attrs['DELTA_MINUS_VAR']].replace_invalid(), dp)
 
+    def toDataFrame(self, vname=None, copy=True):
+        """Convert to Pandas DataFrame
+
+        Converts one variable (and its dependencies) to a Pandas
+        `~pandas.DataFrame`. Invalid values are replaced with `~numpy.nan`.
+
+        Parameters
+        ----------
+        vname : `str`, optional
+            The key into this container of the value to convert
+            (i.e.,  the name of the variable). Strongly recommended;
+            if not specified, will try to find one using `main_vars`,
+            and raise `ValueError` if there is more than one candidate.
+
+        Returns
+        -------
+        `~pandas.DataFrame`
+            Data from the array named by ``vname`` and its dependencies.
+
+        Other Parameters
+        ----------------
+        copy : `bool`, default ``True``
+            Copy data to the DataFrame. If ``False``, changes to the
+            DataFrame may affect the source data. In some cases a copy
+            may be made even if ``False``.
+
+        Notes
+        -----
+        .. versionadded:: 0.6.0
+
+        Examples
+        --------
+        >>> import spacepy.datamodel
+        # https://rbsp-ect.newmexicoconsortium.org/data_pub/rbspa/ECT/level2/
+        >>> data = spacepy.datamodel.fromCDF(
+        ...     'rbspa_ect-elec-L2_20140115_v2.1.0.cdf')
+        >>> df = data.toDataFrame('Position')
+        >>> df.plot()
+        """
+        import pandas
+        if vname is None:
+            main_vars = self.main_vars()
+            if len(main_vars) != 1:
+                matches = ', '.join(main_vars) if main_vars else 'none'
+                raise ValueError(
+                    f'No variable specified; possible matches: {matches}.')
+            vname = main_vars[0]
+        a = self[vname].attrs
+        data = self[vname].replace_invalid()  # makes copy
+        if not numpy.isnan(data).any() and not copy:
+            data = self[vname][...]
+        if 'LABL_PTR_1' in a:
+            columns = self[a['LABL_PTR_1']][...]
+        else:
+            columns = [a.get('FIELDNAM', vname)]
+            if len(data.shape) > 1:
+                columns *= data.shape[-1]
+        df = pandas.DataFrame(
+            data=data, index=self[a['DEPEND_0']][...],
+            columns=columns, copy=False)
+        return df
+
+    @classmethod
+    def fromDataFrame(cls, df, copy=True):
+        """Convert from Pandas DataFrame
+
+        Converts a Pandas `~pandas.DataFrame` to ISTP-compliant type.
+        `~numpy.nan` are replaced with fill.
+
+        Parameters
+        ----------
+        df : `~pandas.DataFrame`
+            Data frame to convert
+
+        Returns
+        -------
+        `ISTPContainer`
+            ISTP-compliant container representing the dataframe's data.
+            This may not be fully ISTP-compliant; the minimium attributes
+            required to represent the DataFrame are used.
+
+        Other Parameters
+        ----------------
+        copy : `bool`, default ``True``
+            Copy data from the DataFrame. If ``False``, changes to the
+            output may affect the DataFrame. In some cases a copy
+            may be made even if ``False``.
+
+        Notes
+        -----
+        .. versionadded:: 0.6.0
+        """
+        output = cls()
+        # assume can hold a dmarray, a CDF will convert it
+        fill = numpy.isnan(df.values)
+        if fill.any():
+            copy = True
+        data = df.values.copy() if copy else df.values
+        vartype = {
+            'f': 'float',
+            'i': 'int',
+            'U': 'char',
+        }.get(data.dtype.kind, 'float')
+        attrs = createISTPattrs('data', ndims=2, vartype=vartype)
+        attrs.update({
+            'DEPEND_1': 'ColumnNumbers',
+            'DISPLAY_TYPE': 'time_series',
+            'FIELDNAM': 'data',
+            'LABL_PTR_1': 'Labels',
+        })
+        for k in ('CATDESC', 'LABLAXIS', 'SI_CONVERSION', 'UNITS',
+                  'VALIDMIN', 'VALIDMAX'):
+            del attrs[k]
+        output['data'] = dmarray(data, attrs=attrs)
+        output['data'][fill] = -1e31
+        attrs = createISTPattrs('support_data', vartype='tt2000')
+        attrs.update({
+            'FIELDNAM': 'Epoch',
+        })
+        del attrs['CATDESC']
+        output['Epoch'] = dmarray(df.index.to_pydatetime(), attrs=attrs)
+        attrs = createISTPattrs('metadata', vartype='char', NRV=True)
+        attrs.update({
+            'FIELDNAM': 'Labels',
+        })
+        del attrs['CATDESC']
+        output['Labels'] = dmarray(df.columns.values, attrs=attrs, dtype='U')
+        attrs = createISTPattrs('support_data', vartype='int', NRV=True)
+        attrs.update({
+            'FIELDNAM': 'ColumnNumbers',
+        })
+        del attrs['CATDESC']
+        output['ColumnNumbers'] = dmarray(numpy.arange(len(df.columns)),
+                                          attrs=attrs)
+        return output
+
 
 class dmarray(numpy.ndarray, MetaMixin, ISTPArray):
     """
@@ -600,6 +722,12 @@ class dmarray(numpy.ndarray, MetaMixin, ISTPArray):
 
     Although the format of attributes is not enforced, using ISTP metadata
     enables the use of methods from `ISTPArray`.
+
+    .. versionchanged:: 0.7.0
+       Operations on a ``dmarray`` which return a scalar value return a numpy
+       :std:term:`array scalar`. Previously they would return the base
+       Python type. Assignment to ``dtype`` and ``shape`` are also now
+       supported; previously this raised :exc:`TypeError`.
 
     Raises
     ------
@@ -627,11 +755,6 @@ class dmarray(numpy.ndarray, MetaMixin, ISTPArray):
     'TestName'
 
     See methods of `ISTPArray` if attributes are ISTP-compliant.
-
-    .. currentmodule:: spacepy.datamodel
-    .. autosummary::
-        ~dmarray.addAttribute
-    .. automethod:: addAttribute
     """
     Allowed_Attributes = ['attrs']
 
@@ -657,12 +780,17 @@ class dmarray(numpy.ndarray, MetaMixin, ISTPArray):
         for val in self.Allowed_Attributes:
             self.__setattr__(val, copy.deepcopy(getattr(obj, val, {})))
 
-    def __array_wrap__(self, out_arr, context=None):
+    def __array_wrap__(self, out_arr, context=None, return_scalar=None):
         #check for zero-dims (numpy bug means subclass behaviour isn't consistent with ndarray
         #this traps most of the bad behaviour ( std() and var() still problems)
-        if out_arr.ndim > 0:
-            return numpy.ndarray.__array_wrap__(self, out_arr, context)
-        return numpy.ndarray.__array_wrap__(self, out_arr, context).tolist()
+        if return_scalar:
+            return super().__array_wrap__(out_arr, context, True)[()]
+        if return_scalar is False:
+            return super().__array_wrap__(out_arr, context, False)
+        # Pre numpy 2.0, so guess if scalar
+        if out_arr.ndim:
+            return super().__array_wrap__(out_arr, context)
+        return super().__array_wrap__(out_arr, context)[()]
 
     def __reduce__(self):
         """This is called when pickling, see:
@@ -693,8 +821,8 @@ class dmarray(numpy.ndarray, MetaMixin, ISTPArray):
         dmarray_assert took 16.025478 s
         It looks like != is the fastest, but not by much over 10000000 __setattr__
         """
-        #meta is special-handled because it should NOT be pickled
-        if name in ('Allowed_Attributes', 'meta'):
+        # Several attrs special-cased because should NOT be pickled
+        if name in ('Allowed_Attributes', 'dtype', 'meta', 'shape'):
             pass
         elif not name in self.Allowed_Attributes:
             raise TypeError("Only attribute listed in Allowed_Attributes can be set")
@@ -820,19 +948,6 @@ class SpaceData(dict, MetaMixin, ISTPContainer):
 
     Although the format of attributes is not enforced, using ISTP metadata
     enables the use of methods from `ISTPContainer`.
-
-    .. currentmodule:: spacepy.datamodel
-    .. autosummary::
-        ~SpaceData.flatten
-        ~SpaceData.tree
-        ~SpaceData.toCDF
-        ~SpaceData.toHDF5
-        ~SpaceData.toJSONheadedASCII
-    .. automethod:: flatten
-    .. automethod:: tree
-    .. automethod:: toCDF
-    .. automethod:: toHDF5
-    .. automethod:: toJSONheadedASCII
     """
     def __getitem__(self, key):
         """
@@ -928,7 +1043,7 @@ class SpaceData(dict, MetaMixin, ISTPContainer):
 
         See Also
         --------
-        toolbox.dictree
+        :class:`~spacepy.toolbox.dictree`
         '''
         from . import toolbox
         return toolbox.dictree(self, **kwargs)
@@ -1314,7 +1429,7 @@ def toCDF(fname, SDobject, skeleton='', flatten=False, overwrite=False,
                             print('{0} is being made NRV'.format(key))
                         v.attrs = dmcopy(val.attrs)
                     except ValueError:
-                        v = outdata.new(key, val.tolist, recVary=False)
+                        v = outdata.new(key, val.tolist(), recVary=False)
                         v.attrs = dmcopy(val.attrs)
                 if force_epoch and 'Epoch' in key:
                     outdata.new(key, val[...], type=pycdf.const.CDF_EPOCH)
@@ -1386,14 +1501,15 @@ def fromHDF5(fname, **kwargs):
                 try:
                     value = hfile[path].attrs[key]
                 except TypeError:
-                    warnings.warn('Unsupported datatype in dataset {}.attrs[{}]'.format(path, key))
+                    warnings.warn('Unsupported datatype in dataset {}.attrs[{}]'.format(path, key), stacklevel=2)
                     continue
                 try:
                     SDobject.attrs[key] = value
                 except:
                     warnings.warn('The following key:value pair is not permitted\n' +
                                   'key = {0} ({1})\n'.format(key, type(key)) +
-                                  'value = {0} ({1})'.format(value, type(value)), DMWarning)
+                                  'value = {0} ({1})'.format(value, type(value)),
+                                  DMWarning, stacklevel=2)
 
     try:
         import h5py
@@ -1504,7 +1620,7 @@ def toHDF5(fname, SDobject, **kwargs):
                                 'key, value, type = {0}, {1}, {2})\n'.format(
                                     key, value, type(value)) +
                                 'value has been converted to a string for output',
-                                DMWarning)
+                                DMWarning, stacklevel=2)
                     else:
                         hfile[path].attrs[dumkey] = ''
                 elif isinstance(value, datetime.datetime):
@@ -1515,7 +1631,7 @@ def toHDF5(fname, SDobject, **kwargs):
                     warnings.warn('The following key:value pair is not permitted\n' +
                                   'key = {0} ({1})\n'.format(key, type(key)) +
                                   'value type {0} is not in the allowed attribute list'.format(type(value)),
-                                  DMWarning)
+                                  DMWarning, stacklevel=2)
 
     try:
         import h5py
@@ -1549,11 +1665,10 @@ def toHDF5(fname, SDobject, **kwargs):
         must_close = False
     path = kwargs.get('path', '/')
 
-    allowed_attrs = [int, float, bytes, str, numpy.ndarray, list, tuple, numpy.string_]
-    for v in numpy.typecodes['AllInteger']:
-        allowed_attrs.append(numpy.sctypeDict[v])
-    for v in numpy.typecodes['AllFloat']:
-        allowed_attrs.append(numpy.sctypeDict[v])
+    allowed_attrs = [int, float, bytes, str, numpy.ndarray, list, tuple, numpy.bytes_]
+    allowed_attrs.extend([
+        numpy.dtype(v).type
+        for v in itertools.chain(numpy.typecodes['AllInteger'], numpy.typecodes['AllFloat'])])
     allowed_attrs = tuple(allowed_attrs)
 
     allowed_elems = (SpaceData, dmarray)
@@ -1586,7 +1701,7 @@ def toHDF5(fname, SDobject, **kwargs):
                             dumval[i] = val.isoformat()
                         dumval = dumval.astype('|S35')
                     else:
-                        dumval = dumval.atsype('|S35')
+                        dumval = dumval.astype('|S35')
                     hfile[path].create_dataset(key, data=dumval, compression=comptype,
                                                compression_opts=compopts, dtype=dtype)
                     #else:
@@ -1596,7 +1711,7 @@ def toHDF5(fname, SDobject, **kwargs):
                 warnings.warn('The following data is not being written as is not of an allowed type\n' +
                               'key = {0} ({1})\n'.format(key, type(key)) +
                               'value type {} is not in the allowed data type list'.format(
-                                  type(value)), DMWarning)
+                                  type(value)), DMWarning, stacklevel=2)
     finally:
         if must_close:
             hfile.close()
@@ -1911,7 +2026,8 @@ def readJSONheadedASCII(fname, mdata=None, comment='#', convert=False, restrict=
             try:
                 name = keys.pop(keys.index(conkey)) #remove from keylist
             except ValueError:
-                warnings.warn('Key {} for conversion not found in file'.format(conkey), UserWarning)
+                warnings.warn('Key {} for conversion not found in file'.format(conkey),
+                              UserWarning, stacklevel=2)
                 continue
             for i, element in numpy.ndenumerate(mdata[name]):
                 mdata[name][i] = conversions[name](element)
@@ -2024,7 +2140,7 @@ def writeJSONMetadata(fname, insd, depend0=None, order=None, verbose=False, retu
                          ' as it has too high a rank\n'
                     l2 = 'key = {0} ({1})\n'.format(key, insd[key].shape)
                     l3 = 'Maximum allowed number of dimensions is 2\n'
-                    warnings.warn(''.join([l1, l2, l3]), DMWarning)
+                    warnings.warn(''.join([l1, l2, l3]), DMWarning, stacklevel=2)
             except AttributeError: #AttrErr if just metadata
                 #js_out[key]['DIMENSION'] = insd[key].attrs['DIMENSION']
                 pass

@@ -41,7 +41,7 @@ help:
 	@echo "  doctest    to run all doctests embedded in the documentation (if enabled)"
 
 %.pdf : %.svg
-	$(SVG2PDF) -f $< -A $@
+	$(SVG2PDF) -o $@ $<
 
 # Build a list of SVG files to convert to PDFs
 PDFs := $(foreach dir, $(IMAGEDIRS), $(patsubst %.svg,%.pdf,$(wildcard $(SOURCEDIR)/$(dir)/*.svg)))
@@ -49,7 +49,7 @@ PDFs := $(foreach dir, $(IMAGEDIRS), $(patsubst %.svg,%.pdf,$(wildcard $(SOURCED
 images: $(PDFs)
 
 clean:
-	-rm -rf $(BUILDDIR)/* source/autosummary/*.rst source/autosummary/autosummary/*.rst $(PDFs)
+	-rm -rf $(BUILDDIR)/* source/autosummary $(PDFs)
 
 html:
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html

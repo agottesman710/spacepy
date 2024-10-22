@@ -26,11 +26,13 @@ from scipy.stats import poisson
 
 import spacepy_testing
 import spacepy
-import spacepy.toolbox as tb
+import spacepy.coordinates
 import spacepy.lib
+import spacepy.time
+import spacepy.toolbox as tb
 
 __all__ = ['PickleAssembleTests', 'SimpleFunctionTests', 'TBTimeFunctionTests',
-           'ArrayBinTests']
+           'ArrayBinTests', 'TBPlotTests']
 
 @contextmanager
 def mockRawInput(mock):
@@ -99,6 +101,84 @@ class PickleAssembleTests(unittest.TestCase):
         for key in result:
             result[key] = result[key].tolist()
         self.assertEqual(expected, result)
+
+    def test_assemble_time_coords(self):
+        """Assemble with time and coordinates data"""
+        D1 = {
+            'time': spacepy.time.Ticktock(['2020-01-01', '2020-01-02'],
+                                          dtype='ISO'),
+            'coord': spacepy.coordinates.Coords([[1, 1, 0], [2, 1, 0]],
+                                                'GSM', 'car')
+        }
+        D2 = {
+            'time': spacepy.time.Ticktock(['2020-01-03', '2020-01-04'],
+                                          dtype='ISO'),
+            'coord': spacepy.coordinates.Coords([[0, 1, 0], [1, 0, 0]],
+                                                'GSM', 'car')
+        }
+        tb.savepickle(os.path.join(self.tempdir, 'test_pickle_1.pkl'), D1)
+        tb.savepickle(os.path.join(self.tempdir, 'test_pickle_2.pkl'), D2)
+        result = tb.assemble(
+            os.path.join(self.tempdir, 'test_pickle_[1-2].pkl'),
+            os.path.join(self.tempdir, 'test_all.pkl'),
+            sortkey=None, verbose=False)
+        frompkl = tb.loadpickle(os.path.join(self.tempdir, 'test_all.pkl'))
+        exp = spacepy.time.Ticktock([
+                '2020-01-01', '2020-01-02', '2020-01-03', '2020-01-04'],
+                                  dtype='ISO')
+        # numpy testing methods don't work with ticktock's __eq__ operator
+        self.assertTrue((result['time'] == exp).all())
+        self.assertTrue((result['time'] == frompkl['time']).all())
+        expected = spacepy.coordinates.Coords([[1, 1, 0], [2, 1, 0], [0, 1, 0],
+                                               [1, 0, 0]], 'GSM', 'car')
+        numpy.testing.assert_array_equal(result['coord'].data, expected.data)
+        numpy.testing.assert_array_equal(result['coord'].data,
+                                         frompkl['coord'].data)
+        self.assertEqual(result['coord'].dtype, expected.dtype)
+        self.assertEqual(result['coord'].dtype, frompkl['coord'].dtype)
+        self.assertEqual(result['coord'].sysaxes, expected.sysaxes)
+        self.assertEqual(result['coord'].sysaxes, frompkl['coord'].sysaxes)
+
+    def test_assemble_sorted(self):
+        tb.savepickle(os.path.join(self.tempdir, 'test_pickle_1.pkl'), self.D1)
+        tb.savepickle(os.path.join(self.tempdir, 'test_pickle_2.pkl'), self.D2)
+        tb.savepickle(os.path.join(self.tempdir, 'test_pickle_3.pkl'), self.D3)
+        # Manually sort expected by 'names'
+        expected = {'names': sorted(self.all['names']),
+                    'TAI': [val for _, val in
+                            sorted(zip(self.all['names'], self.all['TAI']))]}
+        result = tb.assemble(
+            os.path.join(self.tempdir,'test_pickle_[1-3].pkl'),
+            os.path.join(self.tempdir, 'test_all.pkl'),
+            sortkey="names", verbose=False
+        )
+        for key in result:
+            result[key] = result[key].tolist()
+        self.assertEqual(expected, result)
+
+    def test_assemble_sorted_time(self):
+        """Test assemble with a ticktock as sort key"""
+        D1 = {
+            'time': spacepy.time.Ticktock(['2020-01-03', '2020-01-02'],
+                                          dtype='ISO'),
+            'val': numpy.array([1, 2]),
+        }
+        D2 = {
+            'time': spacepy.time.Ticktock(['2020-01-04', '2020-01-01'],
+                                          dtype='ISO'),
+            'val': numpy.array([3, 4]),
+        }
+        tb.savepickle(os.path.join(self.tempdir, 'test_pickle_1.pkl'), D1)
+        tb.savepickle(os.path.join(self.tempdir, 'test_pickle_2.pkl'), D2)
+        result = tb.assemble(
+            os.path.join(self.tempdir, 'test_pickle_[1-2].pkl'),
+            os.path.join(self.tempdir, 'test_all.pkl'),
+            sortkey='time', verbose=False)
+        numpy.testing.assert_array_equal(
+            result['val'], [4, 2, 1, 3])
+        numpy.testing.assert_array_equal(
+            result['time'].ISO,
+            [f'2020-01-0{d}T00:00:00' for d in range(1, 5)])
 
 
 class SimpleFunctionTests(unittest.TestCase):
@@ -197,22 +277,49 @@ class SimpleFunctionTests(unittest.TestCase):
         )
 
     def test_query_yes_no(self):
-        '''query_yes_no should return known strings for known input'''
+        """query_yes_no should return known strings for known input"""
         realstdout = sys.stdout
         output = io.StringIO()
         sys.stdout = output
-        with mockRawInput('y'):
-            self.assertEqual(tb.query_yes_no('yes?'), 'yes')
-        with mockRawInput('n'):
-            self.assertEqual(tb.query_yes_no('no?'), 'no')
-        with mockRawInput(''):
-            self.assertEqual(tb.query_yes_no('no?', default='no'), 'no')
-        output.close()
-        sys.stdout = realstdout
+        try:
+            with mockRawInput('y'):
+                self.assertEqual(tb.query_yes_no('yes?'), 'yes')
+            with mockRawInput('n'):
+                self.assertEqual(tb.query_yes_no('no?'), 'no')
+            with mockRawInput(''):
+                self.assertEqual(tb.query_yes_no('no?', default='no'), 'no')
+        finally:
+            result = output.getvalue()
+            output.close()
+            sys.stdout = realstdout
+        self.assertEqual(
+            "yes? [Y/n] no? [Y/n] no? [y/N] ",
+            result)
 
     def test_query_yes_no_badDefault(self):
-        '''query_yes_no should return error for bad args'''
+        """query_yes_no should return error for bad args"""
         self.assertRaises(ValueError, tb.query_yes_no, '', default='bad')
+
+    def test_query_yes_no_bad_choice(self):
+        """query_yes_no with an invalid choice"""
+        realstdout = sys.stdout
+        output = io.StringIO()
+        realstdin = sys.stdin
+        input_ = io.StringIO("z\ny\n")
+        sys.stdout = output
+        sys.stdin = input_
+        try:
+            self.assertEqual(tb.query_yes_no('no?', default='no'), 'yes')
+        finally:
+            result = output.getvalue()
+            output.close()
+            input_.close()
+            sys.stdout = realstdout
+            sys.stdin = realstdin
+        self.assertEqual(
+            "no? [y/N] Please respond with 'yes' or 'no' (or 'y' or 'n').\n"
+            "no? [y/N] ",
+            result)
 
     def test_mlt2rad(self):
         """mlt2rad should have known output for known input"""
@@ -453,7 +560,7 @@ class SimpleFunctionTests(unittest.TestCase):
         with warnings.catch_warnings():
             warnings.filterwarnings(
                 'ignore', 'pmm: Unable to exclude non-finite',
-                RuntimeWarning, 'spacepy.toolbox$')
+                RuntimeWarning)
             data = [array([5,9,23,24,6]).astype(object),
                     [datetime.datetime(2000, 3, 1, 0, 1), datetime.datetime(2000, 2, 28), datetime.datetime(2000, 3, 1)],
                     numpy.array(['foo', 'bar', 'baz'], dtype=object),
@@ -464,6 +571,16 @@ class SimpleFunctionTests(unittest.TestCase):
             ]
             for i, val in enumerate(real_ans):
                 self.assertEqual(val, tb.pmm(data[i]))
+
+    def test_pmm_list_str(self):
+        """Test pmm with list of str input"""
+        data = ['foo', 'bar', 'qux']
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                'ignore', 'pmm: Unable to exclude non-finite',
+                RuntimeWarning)
+            ans = tb.pmm(data)
+        self.assertEqual([['bar', 'qux']], ans)
 
     def test_rad2mlt(self):
         """rad2mlt should give known answers (regression)"""
@@ -487,15 +604,26 @@ class SimpleFunctionTests(unittest.TestCase):
                   [lambda x: x / 2, 4, 0, 100],
                   [lambda x: numpy.exp(-(x ** 2) / (2 * 5 ** 2)) / \
                           (5 * numpy.sqrt(2 * numpy.pi)), 0.6, -inf, inf],
+                  [lambda x: numpy.exp(-(x ** 2) / (2 * 5 ** 2)) / \
+                          (5 * numpy.sqrt(2 * numpy.pi)), 0.6],
                   ]
         outputs = [3.0 ** (1.0 / 3),
                    4,
-                   1.266735515678999
+                   1.266735515678999,
+                   1.266735515678999,
                    ]
         for (input, output) in zip(inputs, outputs):
             self.assertAlmostEqual(output,
                                    tb.intsolve(*input),
                                    places=6)
+
+    def testIntSolveWarning(self):
+        """intsolve warns when it doesn't converge"""
+        with spacepy_testing.assertWarns(
+                self, message='Difference between desired value and actual',
+                category=UserWarning):
+            ans = tb.intsolve(lambda x: x**2, 1, 0, 5, maxit=10)
+        self.assertAlmostEqual(3.0 ** (1.0 / 3), ans, places=2)
 
     def testDistToList(self):
         """Convert probability distribution to list of values"""
@@ -732,13 +860,19 @@ class SimpleFunctionTests(unittest.TestCase):
         self.assertRaises(IndexError, tb.do_with_timeout,
                           0.5, testfunc, 5)
 
+    #This test definitely doesn't work on Windows, and the function
+    #itself probably doesn't, either
+    @unittest.skipIf(sys.platform == 'win32', 'Not supported on Windows.')
     def test_timeout_check_call(self):
         """Make sure check_call replacement handles timeout"""
-        #This test definitely doesn't work on Windows, and the function
-        #itself probably doesn't, either
-        if sys.platform != 'win32':
+        with spacepy_testing.assertWarns(
+                self, message='timeout_check_call was deprecated',
+                category=DeprecationWarning):
             self.assertEqual(0, tb.timeout_check_call(10.0, 'sleep 2',
                                                       shell=True))
+        with spacepy_testing.assertWarns(
+                self, message='timeout_check_call was deprecated',
+                category=DeprecationWarning):
             self.assertRaises(tb.TimeoutError, tb.timeout_check_call,
                               1.0, 'sleep 5', shell=True)
 
@@ -1080,7 +1214,7 @@ class TBTimeFunctionTests(unittest.TestCase):
         """windowMean should give known results 5(regression)"""
         with warnings.catch_warnings():
             warnings.filterwarnings(
-                'ignore', r'windowmean\:', UserWarning, 'spacepy.toolbox$')
+                'ignore', r'windowmean\:', UserWarning)
             wsize = datetime.timedelta(days=1)
             olap = datetime.timedelta(hours=12)
             data = [10, 20]*50
@@ -1167,6 +1301,48 @@ class TBTimeFunctionTests(unittest.TestCase):
         anst = [ 1.,  3.,  5.,  7.]
         numpy.testing.assert_almost_equal(anst, out[1])
 
+    def test_windowMeanNotDatetime(self):
+        """windowMean should give known results, with non-datetime time"""
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                'ignore', r'windowmean\:', UserWarning)
+            # same setup as windowMean3, but 'time' is in fractional days
+            wsize = 1.
+            olap = .5
+            data = [10, 20] * 50
+            time = [(n + .5) / 24 for n in range(100)]
+            time[50:] = [val + 2 for val in time[50:]]
+            outdata, outtime = tb.windowMean(data, time, winsize=wsize, overlap=olap, st_time=0.)
+            od_ans = [ 15.,  15.,  15.,  15.,  15.,  numpy.nan,  numpy.nan,  15.,  15.,  15.,  15., 15., 15.]
+            ot_ans = [.5 * n for n in range(1, 14)]
+            numpy.testing.assert_almost_equal(od_ans, outdata)
+            self.assertEqual(ot_ans, outtime)
+
+    def test_link_extracter(self):
+        """Get links from sample html"""
+        indata = """
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>SpacePy 0.6.0 documentation &#8212; SpacePy v0.6.0 Manual</title>
+  </head><body>
+  <section id="spacepy-version-documentation">
+<h1>SpacePy 0.6.0 documentation<a class="headerlink" href="#spacepy-version-documentation" title="Permalink to this heading"></a></h1>
+<dl class="simple">
+<dt>To cite the code itself:</dt><dd><p>&#64;software{spacepy_code,
+doi          = {10.5281/zenodo.3252523},
+url          = {<a class="reference external" href="https://doi.org/10.5281/zenodo.3252523">https://doi.org/10.5281/zenodo.3252523</a>}
+}</p></dd></dl>
+</section></body></html>
+        """
+        p = tb.LinkExtracter()
+        p.feed(indata)
+        p.close()
+        self.assertEqual(
+            ['#spacepy-version-documentation', 'https://doi.org/10.5281/zenodo'
+             '.3252523'], p.links)
+
 
 class ArrayBinTests(unittest.TestCase):
     """Tests for arraybin function"""
@@ -1185,6 +1361,23 @@ class ArrayBinTests(unittest.TestCase):
             self.assertEqual(output,
                              tb.arraybin(*input))
 
+class TBPlotTests(spacepy_testing.TestPlot):
+    """Toolbox tests that make plots"""
+
+    def testBootHistoPlot(self):
+        """Bootstrap histogram makes a plot"""
+        numpy.random.seed(28420)
+        data = numpy.random.randn(1000)
+        bin_edges, ci_low, ci_high, sample, bars = spacepy.toolbox.bootHisto(
+            data, n=1000, seed=28420, plot=True)
+        # Return values checked in testBootHisto, checking plot only.
+        self.assertEqual(10, len(bars))  # len(bin_edges) - 1
+        self.assertEqual(7, bars[0].get_height())  # sample[0]
+        self.assertAlmostEqual(0.766784192,  # bin_edges[1] - bin_edges[0]
+                               bars[0].get_width())
+        self.assertAlmostEqual(-3.173718043,  # bin_edges[0]
+                               bars[0].get_x())
+        self.assertEqual(10, len(bars.errorbar[2][0].get_segments()))
 
 
 if __name__ == "__main__":

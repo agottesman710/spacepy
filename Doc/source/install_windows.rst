@@ -4,17 +4,20 @@ Windows Installation
 
 The SpacePy team currently provides binary "wheels" via PyPI so it can
 be installed on Windows without a compiler. Binaries are provided for
-Python 3.6 through 3.10 in 64-bit variant only.
-``pip install spacepy`` should find and install these binaries.
+64-bit x86.  ``pip install spacepy`` should find and install these
+binaries. These include the necessary Fortran runtime and the NASA CDF
+library.
 
 Our recommended (but not required) Python distribution is `Anaconda
 <https://docs.anaconda.com/anaconda/>`_ running 64-bit
 Python 3. Anaconda includes much of the scientific Python
-stack. Another excellent distribution is `Canopy
-<https://www.enthought.com/product/canopy/>`_.
+stack.
 
 If you prefer to install the dependencies some way other than pip, see
 :ref:`win_dep_conda`.
+
+Wheels are built inside a VM running Windows 10 22H2 and should run on
+Windows 10 and 11.
 
 .. contents::
    :local:
@@ -46,16 +49,17 @@ the SpacePy developers use.
 NASA CDF
 ========
 
-:mod:`~spacepy.pycdf` requires the `NASA CDF library
-<https://cdf.gsfc.nasa.gov/html/sw_and_docs.html>`_ . Binary
-installers are available for Windows; be sure to pick the version
-that matches your Python installation. The current 32-bit version
-is `cdf37_1_0-setup-32.exe
-<https://spdf.gsfc.nasa.gov/pub/software/cdf/dist/cdf37_1/windows/cdf37_1_0-setup-32.exe>`_;
-for 64-bit, `cdf37_1_0-setup-64.exe
-<https://spdf.gsfc.nasa.gov/pub/software/cdf/dist/cdf37_1/windows/cdf37_1_0-setup-64.exe>`_.
+SpacePy binary wheels ship with a copy of the NASA CDF library and
+:mod:`~spacepy.pycdf` will use this copy if no other CDF libraries can
+be found.
 
-This is a simple self-extracting installer that can be installed either before or after installing SpacePy.
+If you build SpacePy from source or wish to use a different version of
+the library, you can download it from the `NASA CDF page
+<https://cdf.gsfc.nasa.gov/html/sw_and_docs.html>`_. Binary
+installers are available for Windows; be sure to pick the version
+(32-bit or 64-bit) that matches your Python installation.
+
+NASA CDF can be installed either before or after installing SpacePy.
 
 .. _win_dep_conda:
 

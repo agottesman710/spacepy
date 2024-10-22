@@ -25,20 +25,6 @@ Contact: balarsen@lanl.gov, smorley@lanl.gov
 Los Alamos National Laboratory
 
 Copyright 2011 Los Alamos National Security, LLC.
-
-.. rubric:: Class
-.. autosummary::
-    :template: clean_class.rst
-    :toctree: autosummary
-
-    Spectrogram
-
-.. rubric:: Function
-.. autosummary::
-    :template: clean_function.rst
-    :toctree: autosummary
-
-    simpleSpectrogram
 """
 
 import bisect
@@ -119,12 +105,6 @@ class Spectrogram(dm.SpaceData):
     >>> sd['1D_dataset'] = dm.dmarray(np.random.normal(10,3,500)*sd['radius'])
     >>> spec = splot.Spectrogram(sd, variables=['day_of_year', 'radius', '1D_dataset'])
     >>> ax = spec.plot()
-
-    .. autosummary::
-
-        ~Spectrogram.plot
-
-    .. automethod:: Spectrogram.plot
 
     """
 
@@ -545,11 +525,13 @@ class Spectrogram(dm.SpaceData):
         timeFmt = self.plotSettings['DateFormatter']
         if xy == 'x':
             ticks = axis.get_xticks()
+            axis.set_xticks(ticks)  # Hardcode existing ticks to match labels
             axis.set_xticklabels(matplotlib.dates.num2date(ticks))
             axis.xaxis.set_major_formatter(timeFmt)
             axis.get_figure().autofmt_xdate()
         elif xy == 'y':
             ticks = axis.get_yticks()
+            axis.set_yticks(ticks)
             axis.set_yticklabels(matplotlib.dates.num2date(ticks))
             axis.yaxis.set_major_formatter(timeFmt)
             axis.get_figure().autofmt_ydate()

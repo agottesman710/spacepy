@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-The datamanager classes and functions are useful for locating the correct
-data file for a particular day and manipulating data and subsets in a generic
-way.
+Tools for manipulating paths, data, and subsets
 
 Authors: Jon Niehof
 
@@ -23,26 +21,6 @@ Examples
 Examples go here
 
 .. currentmodule:: spacepy.datamanager
-
-.. rubric:: Classes
-
-.. autosummary::
-    :template: clean_class.rst
-
-    DataManager
-
-.. rubric:: Functions
-
-.. autosummary::
-
-    apply_index
-    array_interleave
-    axis_index
-    flatten_idx
-    insert_fill
-    rebin
-    rev_index
-    values_to_steps
 """
 
 __all__ = ["DataManager", "apply_index", "array_interleave", "axis_index",
@@ -840,7 +818,7 @@ def rebin(data, bindata, bins, axis=-1, bintype='mean',
     Parameters
     ==========
     data : :class:`~numpy.ndarray`
-        N-dimensional array of data to be rebinned. :class:`~numpy.nan`
+        N-dimensional array of data to be rebinned. ``numpy.nan``
         are ignored.
     bindata : :class:`~numpy.ndarray`
         M-dimensional (M<=N) array of values to be compared to the bins.
@@ -853,7 +831,7 @@ def rebin(data, bindata, bins, axis=-1, bintype='mean',
     Other Parameters
     ================
     axis : int
-        Axis of `data` to rebin. This axis will disappear in the
+        Axis of ``data`` to rebin. This axis will disappear in the
         output and be replaced with an axis of the size of
         ``bins`` less one. (Default -1, last axis)
     bintype : str
@@ -880,7 +858,7 @@ def rebin(data, bindata, bins, axis=-1, bintype='mean',
         By default, the ``bindata`` are treated as point values. If
         ``bindatadelta`` is specified, it is treated as the half-width of
         the ``bindata``, allowing a single input value to be split between
-        output bins. Must be scalar, or same shape as `bindata`. Note that
+        output bins. Must be scalar, or same shape as ``bindata``. Note that
         input values are not weighted by the bin width, but by number of
         input values or by ``weights``. (Combining ``weights`` with
         ``bindatadelta`` is not comprehensively tested.)
@@ -1038,7 +1016,7 @@ def rebin(data, bindata, bins, axis=-1, bintype='mean',
     """
     makefloat = lambda x: x if isinstance(x, numpy.ndarray)\
                 and issubclass(x.dtype.type, numpy.floating)\
-                else numpy.require(x, dtype=numpy.float_)
+                else numpy.require(x, dtype=float)
     bintype = bintype.lower()
     assert bintype in ('mean', 'count', 'unc')
     data = makefloat(data)

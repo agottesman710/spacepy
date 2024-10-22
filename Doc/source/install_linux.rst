@@ -2,9 +2,21 @@
 Linux Installation
 ******************
 
-Installation on Linux requires both a C and a Fortran compiler; a
-recent GCC is recommended (the C compiler is likely included with your
-distribution). On Debian and Ubuntu::
+If using your system's built-in Python SpacePy we recommend installing
+dependencies :ref:`via the package manager <linux_dep_apt>`. Our
+recommended (but not required) standalone Python distribution is
+`Anaconda <https://docs.anaconda.com/anaconda/>`_ running 64-bit
+Python 3. Anaconda includes much of the scientific Python stack.
+
+SpacePy ships 64-bit binaries for most modern Linux
+distributions. They are built with the `manylinux2014_x86_64
+<https://github.com/pypa/manylinux/>`_ Docker images and should work
+on any x86_64 Linux using glibc2.17 or later, e.g. Ubuntu 16.04 and
+CentOS 7.
+
+Building from source on Linux requires both a C and a Fortran
+compiler; a recent GCC is recommended (the C compiler is likely
+included with your distribution). On Debian and Ubuntu::
   
       sudo apt-get install gfortran
 
@@ -14,12 +26,6 @@ add the ``--user`` flag.
 
 You will also need the :ref:`NASA CDF library <linux_CDF>` to use
 :mod:`~spacepy.pycdf`.
-
-Our recommended (but not required) Python distribution is `Anaconda
-<https://docs.anaconda.com/anaconda/>`_ running 64-bit
-Python 3. Anaconda includes much of the scientific Python
-stack. Another excellent distribution is `Canopy
-<https://www.enthought.com/product/canopy/>`_.
 
 If you prefer to install the dependencies some way other than pip, see
 :ref:`linux_dep_conda` and :ref:`linux_dep_apt`.
@@ -58,6 +64,9 @@ To get the dependencies for building documentation::
 
 CDF
 ===
+The NASA CDF library is included if installing from a binary wheel. If
+you build SpacePy from source or wish to use a different version of the
+CDF library, you will need to install it.
 
 It is recommended to install the ncurses library; on Ubuntu and Debian::
 
@@ -86,6 +95,8 @@ Raspberry Pi
 SpacePy works on Raspberry Pi, using Raspberry Pi OS in 32-bit or
 64-bit flavors. A few tips:
 
+   * Binary wheels are provided for 64-bit only.
+
    * It is highly recommended to install all dependencies (numpy,
      etc.) via the system package manager ``apt-get`` rather than
      pip, as prebuilt wheels are not generally available and compiling
@@ -93,4 +104,3 @@ SpacePy works on Raspberry Pi, using Raspberry Pi OS in 32-bit or
 
       sudo apt-get install gfortran python3-numpy python3-dateutil python3-scipy python3-h5py python3-matplotlib
 
-   * Similarly, use the ``--no-build-isolation`` flag to use the system numpy.
