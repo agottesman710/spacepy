@@ -744,6 +744,10 @@ class Bats2d(IdlFile):
             self[key[:-1]+'t'] = dmarray(
                 conv[units] * self[key[:-1]+'p']/self[key],
                 attrs={'units': units})
+            if key[:-1]+'pe' in self:
+                self[key[:-1] + 'te'] = dmarray(
+                conv[units] * self[key[:-1]+'pe']/self[key],
+                attrs={'units': units})
 
     @calc_wrapper
     def calc_b(self):
