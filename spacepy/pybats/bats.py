@@ -744,6 +744,10 @@ class Bats2d(IdlFile):
             self[key[:-1]+'t'] = dmarray(
                 conv[units] * self[key[:-1]+'p']/self[key],
                 attrs={'units': units})
+            if key[:-1]+'pe' in self:
+                self[key[:-1] + 'te'] = dmarray(
+                conv[units] * self[key[:-1]+'pe']/self[key],
+                attrs={'units': units})
 
     @calc_wrapper
     def calc_b(self):
@@ -2387,10 +2391,50 @@ class Bats3d(IdlFile):
         IdlFile.__init__(self, filename, keep_case=False, *args,
                          **kwargs)
 
+        self.blocksize = self._otree.blocksize
+
         # Behavior of output files changed Jan. 2017:
         # Check for 'r' instead of 'rbody' in attrs.
         if 'r' in self.attrs and 'rbody' not in self.attrs:
             self.attrs['rbody'] = self.attrs['r']
+
+        self.populate_octree()
+
+    def populate_octree(self):
+        for i in np.arange(0, len(self['x']), self.blocksize[0] * self.blocksize[1] * self.blocksize[2], dtype=int):
+            branch = self.find_leaf(self['x'][i], self['y'][i], self['z'][i], 0)
+            self._otree[branch].data = np.arange(i, i + self.blocksize[0] * self.blocksize[1] * self.blocksize[2],
+                                                 dtype=int)
+
+    def find_leaf(self, x, y, z, branch=0):
+        if self._otree[branch].isLeaf:
+            # Leaf Found
+            # TODO: Make sure that coords are actually in bounds
+            return branch
+        else:
+            if z > self._otree[branch].midpoint[2]:
+                if y > self._otree[branch].midpoint[1]:
+                    if x > self._otree[branch].midpoint[0]:
+                        return self.find_leaf(x, y, z, branch=self._otree[branch].children[7])
+                    else:
+                        return self.find_leaf(x, y, z, branch=self._otree[branch].children[6])
+                else:
+                    if x > self._otree[branch].midpoint[0]:
+                        return self.find_leaf(x, y, z, branch=self._otree[branch].children[5])
+                    else:
+                        return self.find_leaf(x, y, z, branch=self._otree[branch].children[4])
+            else:
+                if y > self._otree[branch].midpoint[1]:
+                    if x > self._otree[branch].midpoint[0]:
+                        return self.find_leaf(x, y, z, branch=self._otree[branch].children[3])
+                    else:
+                        return self.find_leaf(x, y, z, branch=self._otree[branch].children[2])
+                else:
+                    if x > self._otree[branch].midpoint[0]:
+                        return self.find_leaf(x, y, z, branch=self._otree[branch].children[1])
+                    else:
+                        return self.find_leaf(x, y, z, branch=self._otree[branch].children[0])
+
 
 
 class ShellSlice(IdlFile):

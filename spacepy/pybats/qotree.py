@@ -4,9 +4,6 @@
 A class for building QO trees for :class:`~spacepy.pybats.bats.Bats2d`
 objects.
 '''
-import numpy as np
-
-
 class QTree(object):
     '''
     Base class for Quad/Oct tree objects assuming cell-centered grid points
@@ -342,6 +339,7 @@ class Branch(object):
 class Branch3D(object):
 
     def __init__(self, line, rootblocks, lims):
+        from numpy import array
         parts = line.split()
 
         self.isLeaf = int(parts[0]) > 0
@@ -358,23 +356,24 @@ class Branch3D(object):
         self.coords = [(int(parts[6]) - 1) / rootblocks[0] / 2 ** self.level * x_extent + lims[0, 0],
                        (int(parts[7]) - 1) / rootblocks[1] / 2 ** self.level * y_extent + lims[1, 0],
                        (int(parts[8]) - 1) / rootblocks[2] / 2 ** self.level * z_extent + lims[2, 0]]
+        self.extents = array([[self.coords[0], self.coords[0] + x_extent / 2 ** self.level],
+                        [self.coords[1], self.coords[1] + y_extent / 2 ** self.level],
+                        [self.coords[2], self.coords[2] + z_extent / 2 ** self.level]])
+        self.midpoint = [(self.extents[0, 0] + self.extents[0, 1]) / 2,
+                          (self.extents[1, 0] + self.extents[1, 1]) / 2,
+                          (self.extents[2, 0] + self.extents[2, 1]) / 2]
         # Parent Index
         self.parent = int(parts[9]) - 1
         # Child Index
         self.children = [int(x) - 1 for x in parts[10:18]]
 
+        self.data = []
+
 
 class Otree(object):
-    ndim : int
-    lims: np.ndarray
-    rootblocks: np.ndarray
-    gridblocksize: np.ndarray
-    gridtype: str
-    cellsize: np.ndarray
-    branches: list[Branch3D]
-
 
     def __init__(self, filename:str):
+        from numpy import zeros
         self.branches = []
         filename = filename.replace('.outs', '.out')
         tree_file = filename.replace('.out', '.tree')
@@ -391,24 +390,24 @@ class Otree(object):
                 if line.startswith('#GRIDGEOMETRYLIMIT'):
                     line = f.readline()
                     self.gridtype = line.split()[0]
-                    self.lims = np.zeros((self.ndim, 2))
+                    self.lims = zeros((self.ndim, 2))
                     for i in range(self.ndim):
                         line = f.readline()
                         self.lims[i, 0] = float(line.split()[0])
                         line = f.readline()
                         self.lims[i, 1] = float(line.split()[0])
                 if line.startswith('#ROOTBLOCK'):
-                    self.rootblocks = np.zeros(self.ndim)
+                    self.rootblocks = zeros(self.ndim)
                     for i in range(self.ndim):
                         line = f.readline()
                         self.rootblocks[i] = int(line.split()[0])
                 if line.startswith('#GRIDBLOCKSIZE'):
-                    self.gridblocksize = np.zeros(self.ndim)
+                    self.blocksize = zeros(self.ndim)
                     for i in range(self.ndim):
                         line = f.readline()
-                        self.gridblocksize[i] = int(line.split()[0])
+                        self.blocksize[i] = int(line.split()[0])
                 if line.startswith('#CELLSIZE'):
-                    self.cellsize = np.zeros(self.ndim)
+                    self.cellsize = zeros(self.ndim)
                     for i in range(self.ndim):
                         line = f.readline()
                         self.cellsize[i] = float(line.split()[0])
@@ -435,6 +434,9 @@ class Otree(object):
                 if not line:
                     break
                 self.branches.append(Branch3D(line, self.rootblocks, self.lims))
+
+    def __getitem__(self, index):
+        return self.branches[index]
 
         # Some things all trees should know about themselves.
         """self.nleafs = 0
