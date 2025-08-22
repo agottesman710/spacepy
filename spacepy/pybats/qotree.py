@@ -4,6 +4,7 @@
 A class for building QO trees for :class:`~spacepy.pybats.bats.Bats2d`
 objects.
 '''
+import numpy as np
 
 
 class QTree(object):
@@ -337,3 +338,106 @@ class Branch(object):
             y = l[2]+(l[3]-l[2])/2.0
             ax.text(x, y, label)
         ax.add_patch(poly)
+
+class Branch3D(object):
+
+    def __init__(self, line, rootblocks, lims):
+        parts = line.split()
+
+        self.isLeaf = int(parts[0]) > 0
+        # Level of refinement
+        self.level = int(parts[1])
+        # Processor Number
+        self.proc = int(parts[2])
+        # Block number
+        self.block = int(parts[3])
+        # Tree coordinates (nRootblock * 2**level to get actual coords)
+        x_extent = lims[0, 1] - lims[0, 0]
+        y_extent = lims[1, 1] - lims[1, 0]
+        z_extent = lims[2, 1] - lims[2, 0]
+        self.coords = [(int(parts[6]) - 1) / rootblocks[0] / 2 ** self.level * x_extent + lims[0, 0],
+                       (int(parts[7]) - 1) / rootblocks[1] / 2 ** self.level * y_extent + lims[1, 0],
+                       (int(parts[8]) - 1) / rootblocks[2] / 2 ** self.level * z_extent + lims[2, 0]]
+        # Parent Index
+        self.parent = int(parts[9]) - 1
+        # Child Index
+        self.children = [int(x) - 1 for x in parts[10:18]]
+
+
+class Otree(object):
+    ndim : int
+    lims: np.ndarray
+    rootblocks: np.ndarray
+    gridblocksize: np.ndarray
+    gridtype: str
+    cellsize: np.ndarray
+    branches: list[Branch3D]
+
+
+    def __init__(self, filename:str):
+        self.branches = []
+        filename = filename.replace('.outs', '.out')
+        tree_file = filename.replace('.out', '.tree')
+        info_file = filename.replace('.out', '.info')
+
+        with open (info_file, 'r') as f:
+            while True:
+                line = f.readline()
+                if not line:
+                    break
+                if line.startswith('#NDIM'):
+                    line = f.readline()
+                    self.ndim = int(line.split()[0])
+                if line.startswith('#GRIDGEOMETRYLIMIT'):
+                    line = f.readline()
+                    self.gridtype = line.split()[0]
+                    self.lims = np.zeros((self.ndim, 2))
+                    for i in range(self.ndim):
+                        line = f.readline()
+                        self.lims[i, 0] = float(line.split()[0])
+                        line = f.readline()
+                        self.lims[i, 1] = float(line.split()[0])
+                if line.startswith('#ROOTBLOCK'):
+                    self.rootblocks = np.zeros(self.ndim)
+                    for i in range(self.ndim):
+                        line = f.readline()
+                        self.rootblocks[i] = int(line.split()[0])
+                if line.startswith('#GRIDBLOCKSIZE'):
+                    self.gridblocksize = np.zeros(self.ndim)
+                    for i in range(self.ndim):
+                        line = f.readline()
+                        self.gridblocksize[i] = int(line.split()[0])
+                if line.startswith('#CELLSIZE'):
+                    self.cellsize = np.zeros(self.ndim)
+                    for i in range(self.ndim):
+                        line = f.readline()
+                        self.cellsize[i] = float(line.split()[0])
+
+        with open (tree_file, 'r') as f:
+            while True:
+                line = f.readline()
+                if line.startswith('#START'):
+                    break
+            line = f.readline()
+            assert int(line.split()[0]) == self.ndim, \
+                "Tree file nDim does not match info file nDim."
+            self.ninfo = int(line.split()[1])
+            assert self.ninfo == 18, \
+                "Files with nInfo != 18 are not implemented yet."
+            self.nNodes = int(line.split()[2])
+
+            line = f.readline()
+            self.amrRatio = [int(x) for x in line.split()]
+            line = f.readline()
+
+            while True:
+                line = f.readline()
+                if not line:
+                    break
+                self.branches.append(Branch3D(line, self.rootblocks, self.lims))
+
+        # Some things all trees should know about themselves.
+        """self.nleafs = 0
+        self.aspect_ratio = (xmax-xmin)/(ymax-ymin)
+        self.dx_min = inf  # Minimum and maximum spacing
+        self.dx_max = -1  # over all leafs in tree."""

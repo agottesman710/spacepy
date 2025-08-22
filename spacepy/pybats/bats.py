@@ -2376,6 +2376,23 @@ class Bats2d(IdlFile):
         return fig, ax, cont, cbar
 
 
+class Bats3d(IdlFile):
+    def __init__(self, filename, *args, **kwargs):
+        # TODO: This needs to get changed to spacepy.pybats.qotree eventually
+        import spacepy.pybats.qotree as qo
+        # Create quad tree object attribute:
+        self._otree = qo.Otree(filename)
+
+        # Read file.
+        IdlFile.__init__(self, filename, keep_case=False, *args,
+                         **kwargs)
+
+        # Behavior of output files changed Jan. 2017:
+        # Check for 'r' instead of 'rbody' in attrs.
+        if 'r' in self.attrs and 'rbody' not in self.attrs:
+            self.attrs['rbody'] = self.attrs['r']
+
+
 class ShellSlice(IdlFile):
     '''
     Shell slices are special MHD outputs where the domain is interpolated
